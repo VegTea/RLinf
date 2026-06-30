@@ -210,6 +210,13 @@ KEY_MAPPINGS = {
         "state": "observation/state",
         "task": "prompt",
     },
+    "yam": {
+        "observation.images.cam_high": "images.cam_high",
+        "observation.images.cam_left_wrist": "images.cam_left_wrist",
+        "observation.images.cam_right_wrist": "images.cam_right_wrist",
+        "observation.state": "state",
+        "task": "prompt",
+    },
     "droid": {
         "observation.exterior_image_1_left": "observation/exterior_image_1_left",
         "observation.wrist_image_left": "observation/wrist_image_left",
@@ -416,10 +423,17 @@ def build_obs(
     key_map = KEY_MAPPINGS[robot_type]
     obs = {}
 
+    def set_obs_value(key: str, value: Any) -> None:
+        if key.startswith("images."):
+            _, image_name = key.split(".", 1)
+            obs.setdefault("images", {})[image_name] = value
+        else:
+            obs[key] = value
+
     for src_key, dst_key in key_map.items():
         if src_key == "task":
             if "task" in sample:
-                obs[dst_key] = str(to_scalar(sample["task"]))
+                set_obs_value(dst_key, str(to_scalar(sample["task"])))
             elif "task_index" in sample and tasks:
                 task_idx = int(to_scalar(sample["task_index"]))
                 if task_idx not in tasks:
@@ -428,7 +442,7 @@ def build_obs(
                         f"Available task indices: {list(tasks.keys())}. "
                         "Check that meta/tasks.jsonl is complete."
                     )
-                obs[dst_key] = tasks[task_idx]
+                set_obs_value(dst_key, tasks[task_idx])
             else:
                 raise ValueError(
                     "Sample has neither 'task' nor 'task_index' field. "
@@ -436,7 +450,7 @@ def build_obs(
                 )
         elif src_key in sample:
             val = to_numpy(sample[src_key])
-            obs[dst_key] = val
+            set_obs_value(dst_key, val)
 
     return obs
 
