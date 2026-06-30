@@ -21,6 +21,7 @@ Does not modify original per-episode parquet files.
 
 Return computation:
 - reward=-1 per step; last step=0 (success) or failure_reward (failure)
+- reward datasets reuse the existing per-step ``reward`` column
 - Returns via backward iteration: G_t = r_t + gamma * G_{t+1}
 
 Usage:
@@ -47,7 +48,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 logger = logging.getLogger(__name__)
 
 # Columns needed for computation (tiny — no images)
-_READ_COLUMNS = ["episode_index", "frame_index", "is_success", "task_index", "task"]
+_READ_COLUMNS = [
+    "episode_index",
+    "frame_index",
+    "is_success",
+    "task_index",
+    "task",
+    "reward",
+]
 
 
 def compute_returns_for_episode(
@@ -83,6 +91,20 @@ def compute_returns_for_episode(
         returns[t] = rewards[t] + gamma * returns[t + 1]
 
     return returns, rewards
+
+
+def compute_returns_from_rewards(
+    rewards: np.ndarray,
+    gamma: float,
+) -> np.ndarray:
+    """Compute returns from an existing per-step reward sequence."""
+    returns = np.zeros(len(rewards), dtype=np.float32)
+    if len(rewards) == 0:
+        return returns
+    returns[-1] = rewards[-1]
+    for t in range(len(rewards) - 2, -1, -1):
+        returns[t] = rewards[t] + gamma * returns[t + 1]
+    return returns
 
 
 def get_episode_boundaries(episode_indices: np.ndarray) -> list[tuple[int, int, int]]:
@@ -147,12 +169,21 @@ def _process_single_parquet(
     is_success_col = None
     if "is_success" in col_names:
         is_success_col = table.column("is_success").to_pylist()
-    elif dataset_type != "sft":
+    elif dataset_type not in {"sft", "reward"}:
         raise ValueError(
             f"Column 'is_success' not found in {pq_file}. "
             f"Non-SFT datasets (dataset_type={dataset_type!r}) require 'is_success' "
             "to correctly distinguish successful and failed episodes."
         )
+
+    reward_col = None
+    if dataset_type == "reward":
+        if "reward" not in col_names:
+            raise ValueError(
+                f"Column 'reward' not found in {pq_file}. "
+                "Datasets with dataset_type='reward' require existing rewards."
+            )
+        reward_col = table.column("reward").to_numpy().astype(np.float32, copy=False)
 
     returns_arr = np.empty(n, dtype=np.float32)
     rewards_arr = np.empty(n, dtype=np.float32)
@@ -160,17 +191,25 @@ def _process_single_parquet(
     for _, ep_start, ep_end in episodes:
         ep_length = ep_end - ep_start
 
-        if dataset_type == "sft":
+        if dataset_type == "reward":
+            ep_rewards = np.asarray(reward_col[ep_start:ep_end], dtype=np.float32)
+            ep_returns = compute_returns_from_rewards(ep_rewards, gamma=gamma)
+        elif dataset_type == "sft":
             is_success = True
+            ep_returns, ep_rewards = compute_returns_for_episode(
+                episode_length=ep_length,
+                is_success=is_success,
+                gamma=gamma,
+                failure_reward=failure_reward,
+            )
         else:
             is_success = bool(is_success_col[ep_end - 1])
-
-        ep_returns, ep_rewards = compute_returns_for_episode(
-            episode_length=ep_length,
-            is_success=is_success,
-            gamma=gamma,
-            failure_reward=failure_reward,
-        )
+            ep_returns, ep_rewards = compute_returns_for_episode(
+                episode_length=ep_length,
+                is_success=is_success,
+                gamma=gamma,
+                failure_reward=failure_reward,
+            )
         returns_arr[ep_start:ep_end] = ep_returns
         rewards_arr[ep_start:ep_end] = ep_rewards
 
@@ -212,7 +251,7 @@ def process_dataset(
     Args:
         dataset_path: Path to input dataset
         output_path: Path to output dataset (or None to modify in-place)
-        dataset_type: "sft" or "rollout"
+        dataset_type: "sft", "rollout", or "reward"
         gamma: Discount factor
         failure_reward: Penalty for failed episodes
         num_workers: Number of parallel workers for parquet processing
