@@ -305,9 +305,10 @@ class FSDPValueSftWorker(FSDPModelManager, Worker):
                 ds_path = os.path.join(data_root, ds_path)
 
             ds_type = entry.get("type", "sft")
-            if ds_type not in ("sft", "rollout"):
+            if ds_type not in ("sft", "rollout", "reward"):
                 raise ValueError(
-                    f"Dataset type must be 'sft' or 'rollout', got '{ds_type}'"
+                    "Dataset type must be 'sft', 'rollout', or 'reward', "
+                    f"got '{ds_type}'"
                 )
 
             weight = entry.get("weight", 1.0)
