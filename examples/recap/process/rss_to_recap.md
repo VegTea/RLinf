@@ -182,6 +182,87 @@ data/recap/<task_name>/failure/meta/returns_<tag>.parquet
 - `success_hil`：最后一步 reward 为 `0`。
 - `failure`：最后一步 reward 保留 raw parquet 中的失败惩罚，例如 `-2000`。
 
+## 可选 Step: 切分 train/eval
+
+如果要从每个 bucket 中留出一部分 episode 做 value model eval，可以在 Step 1 生成 processed view 后运行 `split_lerobot_dataset.py`。脚本会把 split 内 episode 重新编号为连续索引，并把视频文件用 symlink 指向源数据，避免复制大视频。
+
+以 insert-mouse-battery 按 5% 尾部 episode 做 eval 为例：
+
+```bash
+.venv/bin/python examples/recap/process/split_lerobot_dataset.py \
+  --source-root data/recap/insert_mouse_battery/expert \
+  --output-root data/recap/insert_mouse_battery_split/expert \
+  --eval-ratio 0.05 \
+  --mode tail \
+  --force
+
+.venv/bin/python examples/recap/process/split_lerobot_dataset.py \
+  --source-root data/recap/insert_mouse_battery/success_hil \
+  --output-root data/recap/insert_mouse_battery_split/success_hil \
+  --eval-ratio 0.05 \
+  --mode tail \
+  --force
+
+.venv/bin/python examples/recap/process/split_lerobot_dataset.py \
+  --source-root data/recap/insert_mouse_battery/failure \
+  --output-root data/recap/insert_mouse_battery_split/failure \
+  --eval-ratio 0.05 \
+  --mode tail \
+  --force
+```
+
+输出结构为：
+
+```text
+data/recap/<task_name>_split/
+├── expert/
+│   ├── train/
+│   └── eval/
+├── success_hil/
+│   ├── train/
+│   └── eval/
+└── failure/
+    ├── train/
+    └── eval/
+```
+
+split 后需要重新计算 returns。可以参考 `compute_returns_insert_mouse_battery_yam_split.yaml`：
+
+```yaml
+data:
+  data_root: data/recap/<task_name>_split
+  train_data_paths:
+    - dataset_path: expert/train
+      type: sft
+    - dataset_path: expert/eval
+      type: sft
+    - dataset_path: success_hil/train
+      type: sft
+    - dataset_path: success_hil/eval
+      type: sft
+    - dataset_path: failure/train
+      type: reward
+    - dataset_path: failure/eval
+      type: reward
+```
+
+训练 value model 时，对应配置应使用：
+
+```yaml
+data:
+  data_root: ${oc.env:REPO_PATH}/data/recap/<task_name>_split
+  train_data_paths:
+    - dataset_path: expert/train
+    - dataset_path: success_hil/train
+    - dataset_path: failure/train
+  eval_data_paths:
+    - dataset_path: expert/eval
+    - dataset_path: success_hil/eval
+    - dataset_path: failure/eval
+```
+
+如果希望随机切分而不是尾部切分，可以使用 `--mode random --seed 42`。
+
 ## Step 5: 进入 RECAP 后续流程
 
 returns 生成后，后续流程和普通 RECAP 一样：

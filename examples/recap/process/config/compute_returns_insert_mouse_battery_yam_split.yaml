@@ -1,0 +1,33 @@
+# Compute returns for split YAM insert-mouse-battery RECAP datasets.
+#
+# Usage:
+#   bash examples/recap/process/run_compute_returns.sh compute_returns_insert_mouse_battery_yam_split
+
+data:
+  data_root: data/recap/insert_mouse_battery_split
+  train_data_paths:
+    - dataset_path: expert/train
+      type: sft
+    - dataset_path: expert/eval
+      type: sft
+    - dataset_path: success_hil/train
+      type: sft
+    - dataset_path: success_hil/eval
+      type: sft
+    - dataset_path: failure/train
+      type: reward
+    - dataset_path: failure/eval
+      type: reward
+
+  dataset_type: "sft"
+  gamma: 1.0
+  failure_reward: -2000.0
+  tag: insert_mouse_battery
+  num_workers: 128
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false
