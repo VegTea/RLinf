@@ -33,7 +33,11 @@ from lerobot.common.datasets.lerobot_dataset import (
 from openpi.transforms import DataTransformFn
 from torch.utils.data import Dataset
 
-from rlinf.models.embodiment.openpi.policies import franka_policy, libero_policy
+from rlinf.models.embodiment.openpi.policies import (
+    franka_policy,
+    libero_policy,
+    yam_policy,
+)
 
 from .common import BaseDataLoaderImpl, ReCapMixtureDataset
 from .utils import (
@@ -77,6 +81,16 @@ _REPACK_KEYS = {
         "observation/state": "state",
         "actions": "actions",
         "prompt": "prompt",
+    },
+    "yam": {
+        "images": {
+            "cam_high": "observation.images.cam_high",
+            "cam_left_wrist": "observation.images.cam_left_wrist",
+            "cam_right_wrist": "observation.images.cam_right_wrist",
+        },
+        "state": "observation.state",
+        "actions": "action",
+        "prompt": "task",
     },
 }
 
@@ -322,6 +336,14 @@ class ValueDataset(Dataset):
             transforms_list.append(
                 franka_policy.FrankaEEInputs(
                     action_dim=action_dim,
+                    model_type=model_type_enum,
+                )
+            )
+        elif robot == "yam":
+            transforms_list.append(
+                yam_policy.YamInputs(
+                    action_dim=action_dim,
+                    adapt_to_pi=True,
                     model_type=model_type_enum,
                 )
             )
