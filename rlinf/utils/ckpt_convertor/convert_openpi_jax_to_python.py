@@ -36,7 +36,12 @@ import json
 import os
 import pathlib
 import shutil
+import sys
 from typing import Literal
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 import numpy as np
 import openpi.models.gemma
@@ -50,6 +55,8 @@ import torch
 import tyro
 from flax.nnx import traversals
 from openpi.training import utils
+
+from rlinf.models.embodiment.openpi.dataconfig import get_openpi_config
 
 
 def slice_paligemma_state_dict(state_dict, config):
@@ -495,9 +502,11 @@ def slice_initial_orbax_checkpoint(
     This respects dtype conversions that occur during model restore.
     """
     # Use repository restore utility to load a pure dict of params (value suffix removed)
+    print("Restoring JAX params from Orbax checkpoint...", flush=True)
     params = openpi.models.model.restore_params(
         f"{checkpoint_dir}/params/", restore_type=np.ndarray, dtype=restore_precision
     )
+    print("Finished restoring JAX params.", flush=True)
 
     return {
         "paligemma_params": traversals.flatten_mapping(params["PaliGemma"], sep="/"),
@@ -521,6 +530,17 @@ def load_jax_model_and_print_keys(checkpoint_dir: str):
     checkpointer = ocp.PyTreeCheckpointer()
     metadata = checkpointer.metadata(f"{checkpoint_dir}/params")
     print(utils.array_tree_to_info(metadata))
+
+
+def get_model_config(config_name: str) -> openpi.models.pi0_config.Pi0Config:
+    """Resolve a PI0 model config from RLinf configs, then OpenPI configs."""
+    try:
+        model_config = get_openpi_config(config_name).model
+    except ValueError:
+        model_config = _config.get_config(config_name).model
+    if not isinstance(model_config, openpi.models.pi0_config.Pi0Config):
+        raise ValueError(f"Config {config_name} is not a Pi0Config")
+    return model_config
 
 
 def convert_pi0_checkpoint(
@@ -547,6 +567,7 @@ def convert_pi0_checkpoint(
     )
 
     # Process projection params
+    print("Converting projection params...", flush=True)
     if model_config.pi05:
         keys = [
             "action_in_proj",
@@ -612,11 +633,13 @@ def convert_pi0_checkpoint(
     action_expert_config = openpi.models.gemma.get_config("gemma_300m")
 
     # Process PaliGemma weights
+    print("Converting PaliGemma params...", flush=True)
     paligemma_params, expert_params = slice_paligemma_state_dict(
         initial_params["paligemma_params"], paligemma_config
     )
 
     # Process Gemma weights from expert_params
+    print("Converting Gemma expert params...", flush=True)
     gemma_params = slice_gemma_state_dict(
         expert_params,
         action_expert_config,
@@ -626,12 +649,14 @@ def convert_pi0_checkpoint(
     )
 
     # Instantiate model
+    print("Instantiating PyTorch PI0 model...", flush=True)
     pi0_model = openpi.models_pytorch.pi0_pytorch.PI0Pytorch(model_config)
 
     # Combine all parameters (no prefix needed for our model structure)
     all_params = {**paligemma_params, **gemma_params, **projection_params}
 
     # Load state dict
+    print("Loading converted state dict into PyTorch model...", flush=True)
     pi0_model.load_state_dict(all_params, strict=False)
 
     if precision == "float32":
@@ -645,13 +670,25 @@ def convert_pi0_checkpoint(
     os.makedirs(output_path, exist_ok=True)
 
     # Save model weights as SafeTensors using save_model to handle tied weights
+    print("Saving model.safetensors...", flush=True)
     safetensors.torch.save_model(
         pi0_model, os.path.join(output_path, "model.safetensors")
     )
 
-    # Copy assets folder if it exists
-    assets_source = pathlib.Path(checkpoint_dir).parent / "assets"
-    if assets_source.exists():
+    # Copy assets folder if it exists.
+    checkpoint_path = pathlib.Path(checkpoint_dir)
+    assets_source = next(
+        (
+            candidate
+            for candidate in (
+                checkpoint_path / "assets",
+                checkpoint_path.parent / "assets",
+            )
+            if candidate.exists()
+        ),
+        None,
+    )
+    if assets_source is not None:
         assets_dest = pathlib.Path(output_path) / "assets"
         if assets_dest.exists():
             shutil.rmtree(assets_dest)
@@ -688,9 +725,7 @@ def main(
         precision: Precision for model conversion
         inspect_only: Only inspect parameter keys, don't convert
     """
-    model_config = _config.get_config(config_name).model
-    if not isinstance(model_config, openpi.models.pi0_config.Pi0Config):
-        raise ValueError(f"Config {config_name} is not a Pi0Config")
+    model_config = get_model_config(config_name)
     if inspect_only:
         load_jax_model_and_print_keys(checkpoint_dir)
     else:
