@@ -1,0 +1,11 @@
+source .venv/bin/activate
+
+bash examples/recap/value/run_value_sft.sh yam_tower-of-hanoi-game_sft_value \
+  runner.max_steps=8000 \
+  runner.val_check_interval=500 \
+  runner.save_interval=1000 \
+  actor.micro_batch_size=32 \
+  actor.global_batch_size=256 \
+  actor.optim.total_training_steps=8000 \
+  data.train_num_workers=6 \
+  data.eval_num_workers=2

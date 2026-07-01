@@ -1,6 +1,6 @@
 source .venv/bin/activate
 
-CUDA_VISIBLE_DEVICES=0 bash examples/recap/value/run_value_sft.sh yam_insert_mouse_battery_sft_value \
+CUDA_VISIBLE_DEVICES=0 bash examples/recap/value/run_value_sft.sh yam_seal-water-bottle-cap_sft_value \
   runner.max_steps=2 \
   runner.val_check_interval=-1 \
   runner.save_interval=100 \
