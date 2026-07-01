@@ -25,7 +25,7 @@
 
 - `expert-data`：专家成功数据，按 `type: sft` 处理。
 - `success-and-hil-data`：成功或 HITL 修正数据，当前第一版也按 `type: sft` 处理。
-- `failure-data`：失败轨迹，要求 parquet 中已有 `reward` 列，按 `type: reward` 处理。
+- `failure-data`：失败轨迹。如果 parquet 中已有真实 `reward` 列，按 `type: reward` 处理；如果没有 `reward` 列但整桶都确认是失败轨迹，按 `type: failure` 处理。
 
 当前 YAM 插电池任务中，`failure-data` 的 reward 约定是中间步 `-1`，最后一步 `-2000`。如果新任务失败惩罚不同，需要同步修改 returns 配置里的 `failure_reward`，并确认 raw reward 列本身是否已经符合预期。
 
@@ -158,6 +158,7 @@ data:
 - `dataset_path`：相对 `data_root` 的 bucket 名。
 - `type: sft`：按成功轨迹生成 reward，中间步 `-1`，最后一步 `0`。
 - `type: reward`：直接读取 parquet 中已有 `reward` 列，再反向计算 return。
+- `type: failure`：按失败轨迹生成 reward，中间步 `-1`，最后一步使用 `failure_reward`。
 - `tag`：输出文件名的一部分，最终会生成 `meta/returns_<tag>.parquet`。
 
 ## Step 4: 计算 returns
@@ -186,28 +187,31 @@ data/recap/<task_name>/failure/meta/returns_<tag>.parquet
 
 如果要从每个 bucket 中留出一部分 episode 做 value model eval，可以在 Step 1 生成 processed view 后运行 `split_lerobot_dataset.py`。脚本会把 split 内 episode 重新编号为连续索引，并把视频文件用 symlink 指向源数据，避免复制大视频。
 
-以 insert-mouse-battery 按 5% 尾部 episode 做 eval 为例：
+以 insert-mouse-battery 按 5% episode 随机切分 eval 为例：
 
 ```bash
 .venv/bin/python examples/recap/process/split_lerobot_dataset.py \
   --source-root data/recap/insert_mouse_battery/expert \
   --output-root data/recap/insert_mouse_battery_split/expert \
   --eval-ratio 0.05 \
-  --mode tail \
+  --mode random \
+  --seed 42 \
   --force
 
 .venv/bin/python examples/recap/process/split_lerobot_dataset.py \
   --source-root data/recap/insert_mouse_battery/success_hil \
   --output-root data/recap/insert_mouse_battery_split/success_hil \
   --eval-ratio 0.05 \
-  --mode tail \
+  --mode random \
+  --seed 42 \
   --force
 
 .venv/bin/python examples/recap/process/split_lerobot_dataset.py \
   --source-root data/recap/insert_mouse_battery/failure \
   --output-root data/recap/insert_mouse_battery_split/failure \
   --eval-ratio 0.05 \
-  --mode tail \
+  --mode random \
+  --seed 42 \
   --force
 ```
 
@@ -261,7 +265,7 @@ data:
     - dataset_path: failure/eval
 ```
 
-如果希望随机切分而不是尾部切分，可以使用 `--mode random --seed 42`。
+`split_lerobot_dataset.py` 支持 `--mode random` 和 `--mode tail`；推荐使用 `--mode random --seed 42`，保证 eval episode 随机且可复现。
 
 ## Step 5: 进入 RECAP 后续流程
 

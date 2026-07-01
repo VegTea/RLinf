@@ -42,7 +42,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONVERTER = REPO_ROOT / "rlinf/utils/ckpt_convertor/convert_openpi_jax_to_python.py"
 
@@ -167,7 +166,7 @@ def _compute_return_preview(
         return {}, ["missing episode_index; cannot preview returns"]
     if dataset_kind == "reward" and "reward" not in names:
         return {}, ["reward data needs reward to preview returns"]
-    if dataset_kind not in {"sft", "reward"} and "is_success" not in names:
+    if dataset_kind not in {"sft", "reward", "failure"} and "is_success" not in names:
         return {}, ["rollout/HITL data needs is_success to preview returns"]
 
     ep_indices = table.column("episode_index").to_numpy().astype(np.int64)
@@ -194,8 +193,8 @@ def _compute_return_preview(
             for i in range(length - 2, -1, -1):
                 ep_returns[i] = ep_rewards[i] + gamma * ep_returns[i + 1]
         else:
-            is_success = True
-            if dataset_kind != "sft" and success_values is not None:
+            is_success = dataset_kind == "sft"
+            if dataset_kind not in {"sft", "failure"} and success_values is not None:
                 is_success = bool(success_values[end - 1])
             ep_rewards = np.full(length, -1.0, dtype=np.float32)
             ep_rewards[-1] = 0.0 if is_success else failure_reward
