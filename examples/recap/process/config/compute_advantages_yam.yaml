@@ -8,7 +8,7 @@ defaults:
   - model/value@advantage.model
 
 advantage:
-  value_checkpoint: /path/to/value_checkpoint
+  value_checkpoint: /inspire/ssd/project/gjjproject/czxs24230043/RLinf/logs/value_sft/yam_insert_mouse_battery_sft_value-20260630-14:40:03/yam_insert_mouse_battery_value_sft/checkpoints/global_step_8000
   batch_size: 1024
   flush_interval: 256
   num_dataloader_workers_per_gpu: 12

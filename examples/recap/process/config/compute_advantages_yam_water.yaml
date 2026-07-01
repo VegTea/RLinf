@@ -1,0 +1,59 @@
+# Advantage computation for YAM seal-water-bottle-cap RECAP CFG-RL training.
+#
+# Usage:
+#   bash examples/recap/process/run_compute_advantages.sh compute_advantages_yam_water --nproc 2
+
+defaults:
+  - model/value@advantage.model
+
+advantage:
+  value_checkpoint: /inspire/ssd/project/gjjproject/czxs24230043/RLinf/logs/value_sft/yam_seal-water-bottle-cap_sft_value-20260630-15:44:25/yam_seal-water-bottle-cap_value_sft/checkpoints/global_step_8000
+  batch_size: 1024
+  flush_interval: 256
+  num_dataloader_workers_per_gpu: 12
+  prefetch_factor: 2
+  discount_next_value: true
+  positive_quantile: 0.3
+  tag: seal-water-bottle-cap
+  returns_tag: seal-water-bottle-cap
+
+  model:
+    critic_expert_variant: "gemma_1m"
+    tokenizer_path: /inspire/hdd/global_user/czxs24230043/pretrained_models/google/gemma-3-270m
+    siglip_path: /inspire/hdd/global_user/czxs24230043/pretrained_models/google/siglip2-so400m-patch14-224
+    gemma3_path: /inspire/hdd/global_user/czxs24230043/pretrained_models/google/gemma-3-270m
+    action_dim: 14
+    action_horizon: 50
+
+data:
+  model_type: "pi05"
+  robot_type: "yam"
+
+  train_data_paths:
+    - dataset_path: "/inspire/ssd/project/gjjproject/czxs24230043/RLinf/data/recap/seal-water-bottle-cap_split/expert/train"
+      robot_type: "yam"
+      type: "sft"
+      weight: 1.0
+    - dataset_path: "/inspire/ssd/project/gjjproject/czxs24230043/RLinf/data/recap/seal-water-bottle-cap_split/success_hil/train"
+      robot_type: "yam"
+      type: "sft"
+      weight: 1.0
+    - dataset_path: "/inspire/ssd/project/gjjproject/czxs24230043/RLinf/data/recap/seal-water-bottle-cap_split/failure/train"
+      robot_type: "yam"
+      type: "failure"
+      weight: 1.0
+
+  advantage_lookahead_step: 50
+  gamma: 1.0
+
+distributed:
+  enabled: true
+  backend: "nccl"
+  timeout: 3600
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false
