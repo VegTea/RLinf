@@ -21,6 +21,8 @@ Does not modify original per-episode parquet files.
 
 Return computation:
 - reward=-1 per step; last step=0 (success) or failure_reward (failure)
+- failure datasets mark every episode as failed and use failure_reward at the
+  terminal step
 - reward datasets reuse the existing per-step ``reward`` column
 - Returns via backward iteration: G_t = r_t + gamma * G_{t+1}
 
@@ -169,7 +171,7 @@ def _process_single_parquet(
     is_success_col = None
     if "is_success" in col_names:
         is_success_col = table.column("is_success").to_pylist()
-    elif dataset_type not in {"sft", "reward"}:
+    elif dataset_type not in {"sft", "reward", "failure"}:
         raise ValueError(
             f"Column 'is_success' not found in {pq_file}. "
             f"Non-SFT datasets (dataset_type={dataset_type!r}) require 'is_success' "
@@ -194,8 +196,8 @@ def _process_single_parquet(
         if dataset_type == "reward":
             ep_rewards = np.asarray(reward_col[ep_start:ep_end], dtype=np.float32)
             ep_returns = compute_returns_from_rewards(ep_rewards, gamma=gamma)
-        elif dataset_type == "sft":
-            is_success = True
+        elif dataset_type in {"sft", "failure"}:
+            is_success = dataset_type == "sft"
             ep_returns, ep_rewards = compute_returns_for_episode(
                 episode_length=ep_length,
                 is_success=is_success,
@@ -251,7 +253,7 @@ def process_dataset(
     Args:
         dataset_path: Path to input dataset
         output_path: Path to output dataset (or None to modify in-place)
-        dataset_type: "sft", "rollout", or "reward"
+        dataset_type: "sft", "rollout", "failure", or "reward"
         gamma: Discount factor
         failure_reward: Penalty for failed episodes
         num_workers: Number of parallel workers for parquet processing

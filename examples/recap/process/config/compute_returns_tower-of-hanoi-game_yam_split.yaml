@@ -4,7 +4,7 @@
 #   bash examples/recap/process/run_compute_returns.sh compute_returns_insert_mouse_battery_yam_split
 
 data:
-  data_root: ${oc.env:REPO_PATH}/data/recap/insert_mouse_battery_split
+  data_root: ${oc.env:REPO_PATH}/data/recap/tower-of-hanoi-game_split
   train_data_paths:
     - dataset_path: expert/train
       type: sft
@@ -15,14 +15,14 @@ data:
     - dataset_path: success_hil/eval
       type: sft
     - dataset_path: failure/train
-      type: reward
+      type: failure
     - dataset_path: failure/eval
-      type: reward
+      type: failure
 
   dataset_type: "sft"
   gamma: 1.0
   failure_reward: -2000.0
-  tag: insert_mouse_battery
+  tag: tower-of-hanoi-game
   num_workers: 128
 
 hydra:
