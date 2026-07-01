@@ -1,3 +1,37 @@
+## RECAP训练workflow
+
+官方流程：建议看完https://rlinf.readthedocs.io/zh-cn/latest/rst_source/examples/embodied/recap.html#id10
+
+### 0. 把checkpoint jax转换成pytorch
+  jax2torch.sh
+
+### 1. 把rss raw data转换成仓库目录下的recap data（通过软连接实现，不用担心本仓库存储问题）
+  参考examples/recap/process/rss_to_recap.md和convert_data.sh
+
+### 2. 训练value function（训练之前记得下载预训练的vlm backbone）
+
+配置examples/recap/process/config/`compute_returns_insert_mouse_battery_yam_split.yaml`文件 
+
+然后运行标记脚本bash run_compute_returns.sh compute_returns_insert_mouse_battery_yam_split
+
+配置examples/recap/value/config/`yam_insert_mouse_battery_sft_value.yaml`
+
+运行value 训练value_train_mgpu_mouse.sh
+
+### 3. 计算advantage
+
+配置examples/recap/process/config/compute_advantages_yam_mouse.yaml
+运行
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 bash examples/recap/process/run_compute_advantages.sh compute_advantages_yam_mouse --nproc 4
+```
+
+### 4.pi05 CFG Training
+
+
+
+---
+
 <div align="center">
   <img src="https://github.com/RLinf/misc/raw/main/pic/logo_white.svg" alt="RLinf-logo" width="600"/>
 </div>
