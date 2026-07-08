@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 def _as_batch(value: Any) -> Any:
     """Add a batch dimension to array leaves while preserving strings."""
     if isinstance(value, str):
-        return [value]
+        return np.asarray([value], dtype=object)
     if isinstance(value, np.ndarray):
         return value[None, ...]
     if torch.is_tensor(value):
@@ -93,6 +93,18 @@ def _extract_prompt(obs: dict[str, Any]) -> str:
     )
 
 
+def _with_lerobot_observation(obs: dict[str, Any]) -> dict[str, Any]:
+    """Mirror OpenPI websocket requests into the LeRobot shape expected by RECAP."""
+    images = obs.get("images") or {}
+    if "observation" not in obs and ("images" in obs or "state" in obs):
+        obs["observation"] = {"images": images, "state": obs.get("state")}
+    for key, value in images.items():
+        obs.setdefault(f"observation.images.{key}", value)
+    if "state" in obs:
+        obs.setdefault("observation.state", obs["state"])
+    return obs
+
+
 class RecapCfgPolicy(_policy.BasePolicy):
     """OpenPI protocol-compatible policy that runs RLinf RECAP/CFG inference."""
 
@@ -113,6 +125,17 @@ class RecapCfgPolicy(_policy.BasePolicy):
         prompt = _extract_prompt(inputs)
         inputs.setdefault("task", prompt)
         inputs["prompt"] = prompt
+        inputs = _with_lerobot_observation(inputs)
+        inputs.setdefault(
+            "action",
+            np.zeros(
+                (
+                    int(self._metadata.get("action_horizon", 50)),
+                    int(self._metadata.get("action_dim", 14)),
+                ),
+                dtype=np.float32,
+            ),
+        )
         inputs["positive_guidance_prompt"] = f"{prompt}\nAdvantage: positive"
         inputs["negative_guidance_prompt"] = f"{prompt}\nAdvantage: negative"
 
@@ -206,7 +229,18 @@ def create_recap_cfg_policy(args: argparse.Namespace) -> RecapCfgPolicy:
         model,
         device=args.device,
         metadata={
-            **train_config.policy_metadata,
+            "protocol_version": "1.0",
+            "policy_name": "RecapCfgPolicy",
+            "control_mode": "joints",
+            "action_horizon": args.action_chunk,
+            "action_dim": args.action_env_dim,
+            "state_dim": args.action_env_dim,
+            "image_keys": ["cam_high", "cam_left_wrist", "cam_right_wrist"],
+            "image_shape": [3, 480, 640],
+            "expects_prompt": True,
+            "accepts_compressed_images": True,
+            "extra": {"model_action_dim": getattr(model_config, "action_dim", None)},
+            **(train_config.policy_metadata or {}),
             "checkpoint_dir": str(checkpoint_dir),
             "config_name": args.config_name,
             "repo_id": args.repo_id,

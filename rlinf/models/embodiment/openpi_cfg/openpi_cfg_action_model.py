@@ -294,11 +294,11 @@ class OpenPi0ForCFGActionPrediction(BasePolicy, PI0Pytorch):
                 sample["prompt"] = obs["prompt"][i]
                 positive_guidance_prompt = obs["positive_guidance_prompt"][i]
                 positive_guidance_dict = self._tokenize_transform(
-                    {"prompt": positive_guidance_prompt}
+                    {"prompt": positive_guidance_prompt, "state": sample.get("state")}
                 )
                 negative_guidance_prompt = obs["negative_guidance_prompt"][i]
                 negative_guidance_dict = self._tokenize_transform(
-                    {"prompt": negative_guidance_prompt}
+                    {"prompt": negative_guidance_prompt, "state": sample.get("state")}
                 )
             else:
                 sample["prompt"] = "xxxx"
