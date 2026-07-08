@@ -968,6 +968,60 @@ def compute_advantages_for_dataset(
         return pd.DataFrame(results)
 
 
+def _is_teleop_state(value: Any) -> bool:
+    """Return True if a commander_state cell marks teleoperation."""
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="ignore")
+    if isinstance(value, str):
+        return value.lower() == "teleop"
+    if isinstance(value, (list, tuple)) and value:
+        return any(_is_teleop_state(item) for item in value)
+    return False
+
+
+def _load_teleop_lookup(dataset_path: Path) -> set[tuple[int, int]]:
+    """Load ``(episode_index, frame_index)`` pairs where commander_state is teleop."""
+    data_root = dataset_path / "data"
+    if not data_root.exists():
+        logger.warning(f"  No data directory found for HITL lookup: {data_root}")
+        return set()
+
+    teleop_keys: set[tuple[int, int]] = set()
+    parquet_files = sorted(data_root.glob("chunk-*/*.parquet"))
+    if not parquet_files:
+        parquet_files = sorted(data_root.rglob("*.parquet"))
+
+    required_columns = [
+        "episode_index",
+        "frame_index",
+        "observation.commander_state",
+    ]
+    missing_column_warned = False
+    for parquet_file in parquet_files:
+        try:
+            df = pd.read_parquet(parquet_file, columns=required_columns)
+        except Exception as exc:  # noqa: BLE001
+            if not missing_column_warned:
+                logger.warning(
+                    f"  Could not read commander_state from {parquet_file}: {exc}"
+                )
+                missing_column_warned = True
+            continue
+
+        teleop_mask = df["observation.commander_state"].map(_is_teleop_state)
+        if not teleop_mask.any():
+            continue
+        teleop_df = df.loc[teleop_mask, ["episode_index", "frame_index"]]
+        teleop_keys.update(
+            zip(
+                teleop_df["episode_index"].astype(int).tolist(),
+                teleop_df["frame_index"].astype(int).tolist(),
+            )
+        )
+
+    return teleop_keys
+
+
 def save_advantages_to_dataset(
     dataset_path: Path,
     advantages_df: pd.DataFrame,
@@ -989,7 +1043,8 @@ def save_advantages_to_dataset(
         dataset_path: Source LeRobot dataset path (writes into its meta/)
         advantages_df: DataFrame with advantage values
         threshold: Threshold for positive advantage
-        dataset_type: Dataset type ("sft" forces all-True advantage labels)
+        dataset_type: Dataset type. "sft" forces all-True advantage labels;
+            "hitl" uses threshold labels but forces teleop frames positive.
         rank: Current process rank
         world_size: Total number of processes
         tag: Optional tag for advantages parquet filename
@@ -1001,14 +1056,30 @@ def save_advantages_to_dataset(
         # Build advantages parquet with boolean advantage column
         save_df = advantages_df.copy()
         save_df.rename(columns={"advantage": "advantage_continuous"}, inplace=True)
-        if (dataset_type or "").lower() == "sft":
+        dataset_kind = (dataset_type or "").lower()
+        if dataset_kind == "sft":
             save_df["advantage"] = True
         else:
             save_df["advantage"] = save_df["advantage_continuous"] >= threshold
+            if dataset_kind in {"hitl", "success_hil", "teleop_positive"}:
+                teleop_lookup = _load_teleop_lookup(dataset_path)
+                if teleop_lookup:
+                    frame_keys = zip(
+                        save_df["episode_index"].values.astype(int).tolist(),
+                        save_df["frame_index"].values.astype(int).tolist(),
+                    )
+                    teleop_mask = [key in teleop_lookup for key in frame_keys]
+                    teleop_count = int(np.sum(teleop_mask))
+                    if teleop_count > 0:
+                        save_df.loc[teleop_mask, "advantage"] = True
+                    logger.info(
+                        f"  Dataset type is {dataset_kind}, forcing "
+                        f"{teleop_count} teleop frames to positive"
+                    )
 
         adv_filename = f"advantages_{tag}.parquet" if tag else "advantages.parquet"
         save_df.to_parquet(meta_dir / adv_filename, index=False)
-        if (dataset_type or "").lower() == "sft":
+        if dataset_kind == "sft":
             logger.info(
                 f"  Dataset type is sft, forcing all advantage labels to True ({len(save_df)} entries)"
             )

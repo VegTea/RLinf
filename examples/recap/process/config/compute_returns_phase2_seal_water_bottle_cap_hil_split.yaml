@@ -1,0 +1,25 @@
+# Compute returns for merged RSS phase2 YAM seal-water-bottle-cap HIL splits.
+#
+# Usage:
+#   bash examples/recap/process/run_compute_returns.sh compute_returns_phase2_seal_water_bottle_cap_hil_split
+
+data:
+  data_root: /inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase2
+  train_data_paths:
+    - dataset_path: seal_water_bottle_cap_hil_split/train
+      type: sft
+    - dataset_path: seal_water_bottle_cap_hil_split/eval
+      type: sft
+
+  dataset_type: "sft"
+  gamma: 1.0
+  failure_reward: -2000.0
+  tag: seal-water-bottle-cap
+  num_workers: 128
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false

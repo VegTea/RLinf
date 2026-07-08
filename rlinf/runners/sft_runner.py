@@ -14,7 +14,8 @@
 
 import logging
 import os
-from typing import TYPE_CHECKING, Optional, Union
+import shutil
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from omegaconf.dictconfig import DictConfig
 from tqdm import tqdm
@@ -58,6 +59,7 @@ class SFTRunner:
         self.timer = ScopedTimer(reduction="max", sync_cuda=False)
 
         self.metric_logger = MetricLogger(cfg)
+        self.best_checkpoints: list[dict[str, Any]] = []
 
     def init_workers(self) -> None:
         # create worker in order to decrease the maximum memory usage
@@ -141,6 +143,7 @@ class SFTRunner:
                 evaluate_metrics = {f"eval/{k}": v for k, v in eval_metrics[0].items()}
                 logging_metrics.update(evaluate_metrics)
                 self.metric_logger.log(evaluate_metrics, _step)
+                self._maybe_save_best_checkpoint(evaluate_metrics)
 
             global_pbar.set_postfix(logging_metrics, refresh=False)
             global_pbar.update(1)
@@ -176,6 +179,17 @@ class SFTRunner:
         logger.info(f"Eval metrics: {evaluate_metrics}")
         self.metric_logger.finish()
 
+    def _checkpoint_root(self) -> str:
+        return os.path.join(
+            self.cfg.runner.logger.log_path,
+            self.cfg.runner.logger.experiment_name,
+        )
+
+    def _save_checkpoint_to(self, base_output_dir: str) -> None:
+        actor_save_path = os.path.join(base_output_dir, "actor")
+        os.makedirs(actor_save_path, exist_ok=True)
+        self.actor.save_checkpoint(actor_save_path, self.global_step).wait()
+
     def _save_checkpoint(self, is_best: bool = False) -> None:
         checkpoint_root = os.path.join(
             self.cfg.runner.logger.log_path,
@@ -188,13 +202,92 @@ class SFTRunner:
                 checkpoint_root,
                 f"checkpoints/global_step_{self.global_step}",
             )
-        actor_save_path = os.path.join(base_output_dir, "actor")
-        os.makedirs(actor_save_path, exist_ok=True)
-        self.actor.save_checkpoint(actor_save_path, self.global_step).wait()
+        self._save_checkpoint_to(base_output_dir)
         if is_best and self.early_stop is not None:
             logger.info(
                 f"Saved best model (val_acc={self.early_stop.best_val_acc:.4f}) to {base_output_dir}"
             )
+
+    @staticmethod
+    def _metric_is_better(value: float, other: float, mode: str) -> bool:
+        return value > other if mode == "max" else value < other
+
+    @staticmethod
+    def _sanitize_metric_name(metric: str) -> str:
+        return (
+            metric.replace("/", "_")
+            .replace(" ", "_")
+            .replace(":", "_")
+            .replace("(", "")
+            .replace(")", "")
+        )
+
+    def _maybe_save_best_checkpoint(self, metrics: dict[str, Any]) -> None:
+        best_cfg = self.cfg.runner.get("best_checkpoint", None)
+        if not best_cfg or not bool(best_cfg.get("enable", False)):
+            return
+
+        metric = best_cfg.get("metric", "eval/value_spearman")
+        if metric not in metrics:
+            logger.warning("Best checkpoint metric %s not found.", metric)
+            return
+
+        value = metrics[metric]
+        if value is None:
+            return
+        value = float(value)
+        if value != value:
+            return
+
+        mode = str(best_cfg.get("mode", "max")).lower()
+        if mode not in {"max", "min"}:
+            raise ValueError(f"runner.best_checkpoint.mode must be max or min: {mode}")
+        top_k = int(best_cfg.get("top_k", 3))
+        if top_k < 1:
+            return
+
+        should_save = len(self.best_checkpoints) < top_k
+        if not should_save:
+            worst = self.best_checkpoints[-1]
+            should_save = self._metric_is_better(value, float(worst["value"]), mode)
+        if not should_save:
+            return
+
+        metric_name = self._sanitize_metric_name(metric)
+        best_root = os.path.join(
+            self._checkpoint_root(),
+            "checkpoints",
+            f"best_{metric_name}",
+        )
+        save_dir = os.path.join(
+            best_root,
+            f"global_step_{self.global_step}_{metric_name}_{value:.6f}",
+        )
+        if os.path.exists(save_dir):
+            shutil.rmtree(save_dir)
+        os.makedirs(save_dir, exist_ok=True)
+
+        logger.info(
+            "Saving best checkpoint for %s=%s at step %s.",
+            metric,
+            value,
+            self.global_step,
+        )
+        self._save_checkpoint_to(save_dir)
+        self.best_checkpoints.append(
+            {"value": value, "step": self.global_step, "path": save_dir}
+        )
+        reverse = mode == "max"
+        self.best_checkpoints.sort(
+            key=lambda item: float(item["value"]), reverse=reverse
+        )
+
+        while len(self.best_checkpoints) > top_k:
+            removed = self.best_checkpoints.pop()
+            removed_path = str(removed["path"])
+            if os.path.exists(removed_path):
+                shutil.rmtree(removed_path)
+                logger.info("Removed non-top checkpoint: %s", removed_path)
 
     def set_max_steps(self) -> None:
         self.num_steps_per_epoch = self.actor.get_max_steps_per_epoch().wait()[0]

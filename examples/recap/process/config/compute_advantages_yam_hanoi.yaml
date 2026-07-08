@@ -1,15 +1,16 @@
 # Advantage computation for YAM tower-of-hanoi-game RECAP CFG-RL training.
 #
 # Usage:
-#   bash examples/recap/process/run_compute_advantages.sh compute_advantages_yam_hanoi --nproc 2
+#   YAM_HANOI_VALUE_CKPT=/path/to/checkpoints/global_step_4000 \
+#     bash examples/recap/process/run_compute_advantages.sh compute_advantages_yam_hanoi --nproc 2
 
 defaults:
   - model/value@advantage.model
 
 advantage:
-  value_checkpoint: /inspire/ssd/project/gjjproject/czxs24230043/RLinf/logs/value_sft/yam_tower-of-hanoi-game_sft_value-20260630-15:43:22/yam_tower-of-hanoi-game_value_sft/checkpoints/global_step_8000
-  batch_size: 1024
-  flush_interval: 256
+  value_checkpoint: ${oc.env:YAM_HANOI_VALUE_CKPT}
+  batch_size: 512
+  flush_interval: 64
   num_dataloader_workers_per_gpu: 12
   prefetch_factor: 2
   discount_next_value: true
@@ -30,17 +31,21 @@ data:
   robot_type: "yam"
 
   train_data_paths:
-    - dataset_path: "/inspire/ssd/project/gjjproject/czxs24230043/RLinf/data/recap/tower-of-hanoi-game_split/expert/train"
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/tower_of_hanoi_game_split/expert/train"
       robot_type: "yam"
       type: "sft"
       weight: 1.0
-    - dataset_path: "/inspire/ssd/project/gjjproject/czxs24230043/RLinf/data/recap/tower-of-hanoi-game_split/success_hil/train"
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/tower_of_hanoi_game_split/success_hil/train"
       robot_type: "yam"
-      type: "sft"
+      type: "hitl"
       weight: 1.0
-    - dataset_path: "/inspire/ssd/project/gjjproject/czxs24230043/RLinf/data/recap/tower-of-hanoi-game_split/failure/train"
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/tower_of_hanoi_game_split/failure/train"
       robot_type: "yam"
       type: "failure"
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase2/tower_of_hanoi_game_hil_split/train"
+      robot_type: "yam"
+      type: "hitl"
       weight: 1.0
 
   advantage_lookahead_step: 50

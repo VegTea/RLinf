@@ -1,0 +1,172 @@
+# CFG training for the RSS YAM pi0.5 generalist model.
+#
+# Prerequisites:
+#   1. Set YAM_GENERALIST_PI05_TORCH_CKPT to the generalist PyTorch checkpoint.
+#   2. Advantages generated under every train dataset:
+#      - insert_mouse_battery
+#      - seal-water-bottle-cap
+#      - tower-of-hanoi-game
+#
+# Usage:
+#   YAM_GENERALIST_PI05_TORCH_CKPT=/path/to/generalist/torch \
+#     bash examples/recap/cfg/run_cfg_sft.sh yam_rss_generalist_cfg_openpi
+
+defaults:
+  - model/pi0_5@actor.model
+  - training_backend/fsdp@actor.fsdp_config
+  - _self_
+  - override hydra/job_logging: stdout
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  searchpath:
+    - file://${oc.env:REPO_PATH}/examples/sft/config/
+
+cluster:
+  num_nodes: 1
+  component_placement:
+    actor,env,rollout: all
+
+runner:
+  task_type: sft
+  logger:
+    log_path: "../results"
+    project_name: rlinf
+    experiment_name: "yam_rss_generalist_cfg_openpi"
+    logger_backends: ["tensorboard"]
+
+  max_epochs: -1
+  max_steps: 50000
+  val_check_interval: 1000
+  save_interval: 10000
+  best_checkpoint:
+    enable: true
+    metric: "eval/action_mse"
+    mode: "min"
+    top_k: 1
+
+data:
+  num_workers: 12
+  eval_num_workers: 4
+  eval_action_batches: 4
+  balance_dataset_weights: true
+  seed: 42
+
+  train_data_paths:
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/insert_mouse_battery_split/expert/train"
+      advantage_tag: insert_mouse_battery
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/insert_mouse_battery_split/success_hil/train"
+      advantage_tag: insert_mouse_battery
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/insert_mouse_battery_split/failure/train"
+      advantage_tag: insert_mouse_battery
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase2/insert_mouse_battery_hil_split/train"
+      advantage_tag: insert_mouse_battery
+      weight: 1.0
+
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/seal_water_bottle_cap_split/expert/train"
+      advantage_tag: seal-water-bottle-cap
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/seal_water_bottle_cap_split/success_hil/train"
+      advantage_tag: seal-water-bottle-cap
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/seal_water_bottle_cap_split/failure/train"
+      advantage_tag: seal-water-bottle-cap
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase2/seal_water_bottle_cap_hil_split/train"
+      advantage_tag: seal-water-bottle-cap
+      weight: 1.0
+
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/tower_of_hanoi_game_split/expert/train"
+      advantage_tag: tower-of-hanoi-game
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/tower_of_hanoi_game_split/success_hil/train"
+      advantage_tag: tower-of-hanoi-game
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/tower_of_hanoi_game_split/failure/train"
+      advantage_tag: tower-of-hanoi-game
+      weight: 1.0
+    - dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase2/tower_of_hanoi_game_hil_split/train"
+      advantage_tag: tower-of-hanoi-game
+      weight: 1.0
+
+  eval_data_paths:
+    - name: mouse_phase1_expert
+      dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/insert_mouse_battery_split/expert/eval"
+      max_samples: 5000
+    - name: water_phase1_expert
+      dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/seal_water_bottle_cap_split/expert/eval"
+      max_samples: 5000
+    - name: hanoi_phase1_expert
+      dataset_path: "/inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/tower_of_hanoi_game_split/expert/eval"
+      max_samples: 5000
+
+algorithm:
+  adv_type: gae
+
+actor:
+  group_name: "ActorGroup"
+  training_backend: "fsdp"
+  micro_batch_size: 8
+  global_batch_size: 64
+  seed: 0
+
+  # Keep this relative to model_path so OpenPI loads
+  # <model_path>/assets/rss2026_multitask/norm_stats.json.
+  openpi_data:
+    repo_id: "assets/rss2026_multitask"
+
+  model:
+    precision: null
+    model_path: ${oc.env:YAM_GENERALIST_PI05_TORCH_CKPT}
+    model_type: "cfg_model"
+    num_action_chunks: 50
+    action_dim: 14
+    add_value_head: False
+
+    openpi_data:
+      repo_id: "assets/rss2026_multitask"
+
+    openpi:
+      config_name: "pi05_yam"
+      num_images_in_input: 3
+      cfgrl_guidance_scale: 1.0
+      unconditional_prob: 0.2
+      train_expert_only: False
+      guidance_type: "positive"
+      positive_only_conditional: true
+      detach_critic_input: true
+      action_chunk: ${actor.model.num_action_chunks}
+      action_env_dim: ${actor.model.action_dim}
+
+  optim:
+    lr: 2.5e-5
+    adam_beta1: 0.9
+    adam_beta2: 0.95
+    adam_eps: 1.0e-8
+    weight_decay: 1.0e-10
+    clip_grad: 1.0
+    lr_scheduler: "cosine"
+    lr_warmup_steps: 1000
+    total_training_steps: 50000
+    min_lr: 2.5e-6
+
+  fsdp_config:
+    strategy: "fsdp"
+    sharding_strategy: "full_shard"
+    use_orig_params: False
+    gradient_checkpointing: False
+    mixed_precision:
+      param_dtype: ${actor.model.precision}
+      reduce_dtype: ${actor.model.precision}
+      buffer_dtype: ${actor.model.precision}
+
+reward:
+  use_reward_model: False
+
+critic:
+  use_critic_model: False

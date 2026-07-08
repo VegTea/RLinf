@@ -63,8 +63,10 @@ def _episode_chunk(episode_index: int, chunks_size: int) -> int:
 
 def _data_file(root: Path, info: dict[str, Any], episode_index: int) -> Path:
     chunks_size = int(info.get("chunks_size", 1000))
+    episode_chunk = _episode_chunk(episode_index, chunks_size)
     return root / info["data_path"].format(
-        episode_chunk=_episode_chunk(episode_index, chunks_size),
+        episode_chunk=episode_chunk,
+        chunk_index=episode_chunk,
         episode_index=episode_index,
     )
 
@@ -73,8 +75,10 @@ def _video_file(
     root: Path, info: dict[str, Any], episode_index: int, video_key: str
 ) -> Path:
     chunks_size = int(info.get("chunks_size", 1000))
+    episode_chunk = _episode_chunk(episode_index, chunks_size)
     return root / info["video_path"].format(
-        episode_chunk=_episode_chunk(episode_index, chunks_size),
+        episode_chunk=episode_chunk,
+        chunk_index=episode_chunk,
         episode_index=episode_index,
         video_key=video_key,
     )

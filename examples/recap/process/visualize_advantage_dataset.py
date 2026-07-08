@@ -42,6 +42,7 @@ Usage:
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -52,11 +53,24 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from lerobot.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
+from lerobot.common.datasets.lerobot_dataset import (
+    LeRobotDataset,
+    LeRobotDatasetMetadata,
+)
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from tqdm import tqdm
 
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
 from rlinf.data.datasets.recap.utils import decode_image_struct_batch
+
+MODE_COLORS = {
+    "inference": "#1f77b433",
+    "teleop": "#2ca02c33",
+    "pre_teleop": "#ff7f0e33",
+    "restore": "#9467bd33",
+    "align": "#8c564b33",
+}
 
 
 def to_numpy(x):
@@ -140,6 +154,56 @@ def get_episode_indices(dataset: LeRobotDataset, episode_index: int) -> list[int
         if int(to_scalar(sample["episode_index"])) == episode_index:
             indices.append(idx)
     return sorted(indices)
+
+
+def _mode_segments(
+    frames: list[int],
+    modes: list[str],
+) -> list[tuple[str, int, int]]:
+    """Return contiguous commander-state segments as (mode, start_frame, end_frame)."""
+    if not frames or not modes or len(frames) != len(modes):
+        return []
+    segments = []
+    start = 0
+    for i in range(1, len(modes)):
+        if modes[i] != modes[start]:
+            segments.append((modes[start], frames[start], frames[i - 1]))
+            start = i
+    segments.append((modes[start], frames[start], frames[-1]))
+    return segments
+
+
+def _shade_commander_modes(ax, frames: list[int], modes: list[str]):
+    """Draw mode backgrounds for HIL data if commander_state is available."""
+    seen = set()
+    for mode, start_frame, end_frame in _mode_segments(frames, modes):
+        if not mode or mode == "unknown":
+            continue
+        color = MODE_COLORS.get(mode, "#7f7f7f22")
+        label = mode if mode not in seen else None
+        ax.axvspan(start_frame, end_frame, color=color, linewidth=0, label=label)
+        seen.add(mode)
+
+
+def _sample_plot_indices(num_points: int, stride: int) -> list[int]:
+    """Return indices for sparse plotting, always including the final point."""
+    if num_points <= 0:
+        return []
+    if stride <= 1:
+        return list(range(num_points))
+    indices = list(range(0, num_points, stride))
+    if indices[-1] != num_points - 1:
+        indices.append(num_points - 1)
+    return indices
+
+
+def _find_episode_parquet(dataset_root: Path, episode_index: int) -> Path | None:
+    """Find the parquet file for a local LeRobot episode."""
+    expected_name = f"episode_{episode_index:06d}.parquet"
+    matches = sorted((dataset_root / "data").glob(f"chunk-*/{expected_name}"))
+    if matches:
+        return matches[0]
+    return None
 
 
 def create_advantage_distribution_plot(
@@ -407,6 +471,7 @@ def get_episode_data(
     tasks: dict,
     image_keys: list[str],
     adv_df: pd.DataFrame,
+    load_video_frames: bool = True,
 ) -> dict[str, Any]:
     """Extract all data for an episode.
 
@@ -420,12 +485,96 @@ def get_episode_data(
 
     # Get advantage data for this episode from the DataFrame
     ep_adv = adv_df[adv_df["episode_index"] == episode_index].sort_values("frame_index")
+    dataset_root = Path(getattr(dataset, "root", ""))
+    episode_parquet = _find_episode_parquet(dataset_root, episode_index)
+
+    if not load_video_frames:
+        if len(ep_adv) > 0:
+            frames = [int(x) for x in ep_adv["frame_index"].tolist()]
+            advantages = [
+                float(x) for x in ep_adv.get("advantage_continuous", 0.0).tolist()
+            ]
+            values = [float(x) for x in ep_adv.get("value_current", 0.0).tolist()]
+        elif episode_parquet is not None:
+            ep_table = pd.read_parquet(episode_parquet, columns=["frame_index"])
+            frames = [int(x) for x in ep_table["frame_index"].tolist()]
+            advantages = [0.0] * len(frames)
+            values = [0.0] * len(frames)
+        else:
+            frames = []
+            advantages = []
+            values = []
+
+        if not frames:
+            return None
+
+        commander_states = ["unknown"] * len(frames)
+        task = ""
+        if episode_parquet is not None:
+            columns = ["frame_index"]
+            available_columns = pd.read_parquet(episode_parquet).columns
+            if "observation.commander_state" in available_columns:
+                columns.append("observation.commander_state")
+            if "task_index" in available_columns:
+                columns.append("task_index")
+            ep_meta = pd.read_parquet(episode_parquet, columns=columns)
+            if "observation.commander_state" in ep_meta.columns:
+                mode_by_frame = {
+                    int(row["frame_index"]): str(row["observation.commander_state"])
+                    for _, row in ep_meta.iterrows()
+                }
+                commander_states = [
+                    mode_by_frame.get(frame_idx, "unknown") for frame_idx in frames
+                ]
+            if "task_index" in ep_meta.columns and tasks and len(ep_meta) > 0:
+                task_idx = int(ep_meta["task_index"].iloc[0])
+                task = tasks.get(task_idx, f"Task {task_idx}")
+
+        image_lists = {key: [None] * len(frames) for key in image_keys}
+        sample_indices = [
+            0,
+            len(frames) // 4,
+            len(frames) // 2,
+            3 * len(frames) // 4,
+            len(frames) - 1,
+        ]
+        sample_indices = sorted({i for i in sample_indices if i < len(frames)})
+        for pos in tqdm(
+            sample_indices,
+            desc=f"Loading key frames for episode {episode_index}",
+            leave=False,
+        ):
+            sample = dataset[indices[pos]]
+            for key in image_keys:
+                if key in sample:
+                    img = to_numpy(sample[key])
+                    if img.ndim == 4:
+                        img = img[0]
+                    if img.dtype == np.float32 or img.dtype == np.float64:
+                        img = (img * 255).astype(np.uint8)
+                    if img.shape[0] == 3:
+                        img = np.transpose(img, (1, 2, 0))
+                    image_lists[key][pos] = img
+            if not task and "task_index" in sample and tasks:
+                task_idx = int(to_scalar(sample["task_index"]))
+                task = tasks.get(task_idx, f"Task {task_idx}")
+
+        return {
+            "frames": frames,
+            "images": image_lists,
+            "values": values,
+            "advantages": advantages,
+            "commander_states": commander_states,
+            "task": task,
+            "episode_index": episode_index,
+        }
 
     data = {
         "frames": [],
         "images": {key: [] for key in image_keys},
         "values": [],
         "advantages": [],
+        "commander_states": [],
         "task": "",
         "episode_index": episode_index,
     }
@@ -439,6 +588,9 @@ def get_episode_data(
         sample = dataset[idx]
         frame_idx = int(to_scalar(sample["frame_index"]))
         data["frames"].append(frame_idx)
+        data["commander_states"].append(
+            str(sample.get("observation.commander_state", "unknown"))
+        )
 
         # Load images
         for key in image_keys:
@@ -474,6 +626,7 @@ def create_episode_video(
     output_path: Path,
     threshold: float | None = None,
     fps: int = 10,
+    value_point_stride: int = 50,
     figsize: tuple[int, int] = (14, 8),
     dpi: int = 100,
 ):
@@ -551,7 +704,30 @@ def create_episode_video(
 
     # Set up static plot lines
     for ax, (name, values, color) in zip(plot_axes, plot_data):
-        ax.plot(frames, values, color=color, alpha=0.7, linewidth=1)
+        _shade_commander_modes(
+            ax, frames, episode_data.get("commander_states", [])
+        )
+        if name in ("values", "advantages") and value_point_stride > 1:
+            point_indices = _sample_plot_indices(len(frames), value_point_stride)
+            sparse_frames = [frames[i] for i in point_indices]
+            sparse_values = [values[i] for i in point_indices]
+            label = (
+                f"V(o_t), every {value_point_stride} frames"
+                if name == "values"
+                else f"Advantage, every {value_point_stride} frames"
+            )
+            ax.plot(
+                sparse_frames,
+                sparse_values,
+                "-",
+                color=color,
+                alpha=0.85,
+                linewidth=1,
+                label=label,
+            )
+            ax.legend(fontsize=7, loc="upper right")
+        else:
+            ax.plot(frames, values, color=color, alpha=0.7, linewidth=1)
         ax.set_xlim(frames[0], frames[-1])
         if values:
             margin = (max(values) - min(values)) * 0.1 + 0.01
@@ -631,10 +807,11 @@ def create_episode_video(
             overlay.set_visible(above)
 
         adv_val = advantages[frame_num]
+        mode = episode_data.get("commander_states", ["unknown"] * n_frames)[frame_num]
         indicator = " [ABOVE THRESHOLD]" if above else ""
         title.set_text(
             f"Episode {episode_data['episode_index']} - {task_text}\n"
-            f"Frame: {frames[frame_num]}  Adv: {adv_val:.4f}{indicator}"
+            f"Frame: {frames[frame_num]}  Mode: {mode}  Adv: {adv_val:.4f}{indicator}"
         )
 
         return camera_ims + plot_markers + border_patches + overlay_patches + [title]
@@ -650,6 +827,7 @@ def create_episode_summary_plot(
     episode_data: dict[str, Any],
     output_path: Path,
     threshold: float | None = None,
+    value_point_stride: int = 50,
     figsize: tuple[int, int] = (14, 8),
 ):
     """Create a static summary plot for an episode."""
@@ -683,7 +861,11 @@ def create_episode_summary_plot(
         cam_name = key.replace("observation.images.", "").replace("_", " ").title()
         for col_idx, frame_idx in enumerate(sample_indices):
             ax = fig.add_subplot(gs[cam_idx, col_idx])
-            ax.imshow(episode_data["images"][key][frame_idx])
+            image = episode_data["images"][key][frame_idx]
+            if image is None:
+                ax.text(0.5, 0.5, "image not loaded", ha="center", va="center")
+            else:
+                ax.imshow(image)
             ax.axis("off")
             # Green border if advantage >= threshold at this frame
             above = threshold is not None and advantages[frame_idx] >= threshold
@@ -727,8 +909,22 @@ def create_episode_summary_plot(
     # Value plot
     ax_value = fig.add_subplot(gs[n_cameras, :])
     values = episode_data["values"]
+    _shade_commander_modes(ax_value, frames, episode_data.get("commander_states", []))
     if any(v != 0 for v in values):
-        ax_value.plot(frames, values, "g-", label="V(o_t)", linewidth=1.5)
+        if value_point_stride > 1:
+            point_indices = _sample_plot_indices(len(frames), value_point_stride)
+            sparse_frames = [frames[i] for i in point_indices]
+            sparse_values = [values[i] for i in point_indices]
+            ax_value.plot(
+                sparse_frames,
+                sparse_values,
+                "-",
+                color="green",
+                label=f"V(o_t), every {value_point_stride} frames",
+                linewidth=1.1,
+            )
+        else:
+            ax_value.plot(frames, values, "g-", label="V(o_t)", linewidth=1.2, alpha=0.7)
     ax_value.set_ylabel("Value")
     ax_value.legend(loc="upper right", fontsize=8)
     ax_value.grid(True, alpha=0.3)
@@ -737,7 +933,23 @@ def create_episode_summary_plot(
     # Advantage plot
     ax_adv = fig.add_subplot(gs[n_cameras + 1, :])
     adv_values = episode_data["advantages"]
-    ax_adv.plot(frames, adv_values, "r-", label="Advantage", linewidth=1.5)
+    _shade_commander_modes(ax_adv, frames, episode_data.get("commander_states", []))
+    if value_point_stride > 1:
+        adv_point_indices = _sample_plot_indices(len(frames), value_point_stride)
+        adv_plot_frames = [frames[i] for i in adv_point_indices]
+        adv_plot_values = [adv_values[i] for i in adv_point_indices]
+        ax_adv.plot(
+            adv_plot_frames,
+            adv_plot_values,
+            "-",
+            color="red",
+            label=f"Advantage, every {value_point_stride} frames",
+            linewidth=1.1,
+        )
+    else:
+        adv_plot_frames = frames
+        adv_plot_values = adv_values
+        ax_adv.plot(frames, adv_values, "r-", label="Advantage", linewidth=1.5)
     ax_adv.axhline(y=0, color="k", linestyle="--", alpha=0.3)
     if threshold is not None:
         ax_adv.axhline(
@@ -749,10 +961,10 @@ def create_episode_summary_plot(
             label=f"Threshold={threshold:.4f}",
         )
         # Shade above-threshold regions green
-        adv_arr_plot = np.array(adv_values)
+        adv_arr_plot = np.array(adv_plot_values)
         above_mask = adv_arr_plot >= threshold
         ax_adv.fill_between(
-            frames,
+            adv_plot_frames,
             adv_arr_plot,
             threshold,
             where=above_mask,
@@ -797,6 +1009,12 @@ def main():
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
     parser.add_argument("--fps", type=int, default=10, help="Video FPS")
+    parser.add_argument(
+        "--value-point-stride",
+        type=int,
+        default=50,
+        help="Plot V(o_t) and advantage using every Nth frame in episode plots; <=1 plots all frames",
+    )
     parser.add_argument("--no-video", action="store_true", help="Skip video generation")
     parser.add_argument(
         "--no-distribution", action="store_true", help="Skip distribution plot"
@@ -940,6 +1158,7 @@ def main():
             tasks=tasks,
             image_keys=image_keys,
             adv_df=adv_df,
+            load_video_frames=not args.no_video,
         )
 
         if ep_data is None:
@@ -948,12 +1167,23 @@ def main():
 
         # Create summary plot
         plot_path = output_dir / f"episode_{ep_idx:04d}_summary.png"
-        create_episode_summary_plot(ep_data, plot_path, threshold=threshold)
+        create_episode_summary_plot(
+            ep_data,
+            plot_path,
+            threshold=threshold,
+            value_point_stride=args.value_point_stride,
+        )
 
         # Create video
         if not args.no_video:
             video_path = output_dir / f"episode_{ep_idx:04d}.mp4"
-            create_episode_video(ep_data, video_path, threshold=threshold, fps=args.fps)
+            create_episode_video(
+                ep_data,
+                video_path,
+                threshold=threshold,
+                fps=args.fps,
+                value_point_stride=args.value_point_stride,
+            )
 
     print(f"\nVisualization complete! Output saved to {output_dir}")
 

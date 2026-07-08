@@ -1,10 +1,10 @@
-# Compute returns for split YAM insert-mouse-battery RECAP datasets.
+# Compute returns for RSS phase1 YAM insert-mouse-battery RECAP splits.
 #
 # Usage:
-#   bash examples/recap/process/run_compute_returns.sh compute_returns_insert_mouse_battery_yam_split
+#   bash examples/recap/process/run_compute_returns.sh compute_returns_phase1_insert_mouse_battery_yam_split
 
 data:
-  data_root: /inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/insert_mouse_battery_split
+  data_root: /inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase1/insert_mouse_battery_split
   train_data_paths:
     - dataset_path: expert/train
       type: sft

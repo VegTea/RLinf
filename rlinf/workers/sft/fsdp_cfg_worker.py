@@ -84,9 +84,10 @@ class FSDPCfgWorker(FSDPSftWorker):
             self.global_batch_size // self.micro_batch_size // self._world_size
         )
 
-        self.data_loader, self.data_config = self.build_dataloader()
+        self.data_loader, self.eval_data_loaders, self.data_config = (
+            self.build_dataloader()
+        )
         self.data_iter = iter(self.data_loader)
-        self.eval_data_loader = None
 
         self.global_step = 0
         self._data_epoch = 0
@@ -96,12 +97,14 @@ class FSDPCfgWorker(FSDPSftWorker):
     def _load_advantages_lookup(
         data_path: str,
         advantage_tag: str | None = None,
+        required: bool = True,
     ) -> dict[tuple[int, int], bool]:
         """Load advantage lookup from meta/advantages_{tag}.parquet or meta/advantages.parquet.
 
         Args:
             data_path: Path to LeRobot dataset.
             advantage_tag: Advantage tag name. If None, loads meta/advantages.parquet.
+            required: If False, return an empty lookup when the sidecar is missing.
 
         Returns:
             Dict mapping (episode_index, frame_index) -> bool.
@@ -114,6 +117,8 @@ class FSDPCfgWorker(FSDPSftWorker):
             meta_path = Path(data_path) / "meta" / "advantages.parquet"
 
         if not meta_path.exists():
+            if not required:
+                return {}
             raise FileNotFoundError(
                 f"Advantage file not found: {meta_path}. "
                 f"Run compute_advantages.py first."
@@ -131,6 +136,19 @@ class FSDPCfgWorker(FSDPSftWorker):
             )
         )
         return lookup
+
+    @staticmethod
+    def _positive_advantages_lookup(base_dataset: Any) -> dict[tuple[int, int], bool]:
+        """Build an all-positive advantage lookup for eval-only diagnostics."""
+        hf_dataset = AdvantagePreservingDataset._get_hf_dataset(base_dataset)
+        if hf_dataset is None:
+            raise ValueError(
+                "Cannot access HF dataset to build default positive advantages."
+            )
+        return {
+            (int(ep), int(fr)): True
+            for ep, fr in zip(hf_dataset["episode_index"], hf_dataset["frame_index"])
+        }
 
     def build_dataloader(self):
         """Build CFG dataloader with advantage-weighted sampling across datasets."""
@@ -158,18 +176,17 @@ class FSDPCfgWorker(FSDPSftWorker):
             model_path=self.cfg.actor.model.model_path,
             batch_size=self.cfg.actor.micro_batch_size * self._world_size,
             repo_id=first_path,
+            data_kwargs=getattr(self.cfg.actor, "openpi_data", None),
         )
         data_config = config.data.create(config.assets_dirs, config.model)
 
         model_transforms = self._build_model_transforms(data_config)
         norm_stats = data_config.norm_stats or {}
 
-        datasets_with_weights = []
-        for ds_config in datasets_config:
+        def _build_dataset(ds_config: Any, *, eval_dataset: bool = False):
             data_path = ds_config["dataset_path"]
             dataset_root = resolve_lerobot_dataset_root(data_path)
             episodes = ds_config.get("episodes")
-            weight = ds_config.get("weight", 1.0)
 
             dataset_meta = lerobot_dataset.LeRobotDatasetMetadata(
                 data_path, root=dataset_root
@@ -211,11 +228,23 @@ class FSDPCfgWorker(FSDPSftWorker):
                 base_dataset, transforms_list
             )
 
-            advantages_lookup = self._load_advantages_lookup(data_path, advantage_tag)
+            dataset_advantage_tag = ds_config.get("advantage_tag", advantage_tag)
+            advantages_lookup = self._load_advantages_lookup(
+                data_path,
+                dataset_advantage_tag,
+                required=not eval_dataset,
+            )
+            if eval_dataset and not advantages_lookup:
+                advantages_lookup = self._positive_advantages_lookup(base_dataset)
+                if self._rank == 0:
+                    self.log_info(
+                        f"No eval advantages sidecar found for {data_path}; "
+                        "using all-positive guidance labels for eval."
+                    )
             if self._rank == 0:
                 adv_filename = (
-                    f"advantages_{advantage_tag}.parquet"
-                    if advantage_tag
+                    f"advantages_{dataset_advantage_tag}.parquet"
+                    if dataset_advantage_tag
                     else "advantages.parquet"
                 )
                 self.log_info(
@@ -228,12 +257,18 @@ class FSDPCfgWorker(FSDPSftWorker):
                 transformed_dataset=transformed_dataset,
                 advantages_lookup=advantages_lookup,
             )
+            return final_dataset
+
+        datasets_with_weights = []
+        for ds_config in datasets_config:
+            weight = ds_config.get("weight", 1.0)
+            final_dataset = _build_dataset(ds_config, eval_dataset=False)
 
             datasets_with_weights.append((final_dataset, weight))
 
             if self._rank == 0:
                 self.log_info(
-                    f"Loaded dataset: {data_path} "
+                    f"Loaded dataset: {ds_config['dataset_path']} "
                     f"({len(final_dataset)} samples, weight={weight})"
                 )
 
@@ -249,7 +284,47 @@ class FSDPCfgWorker(FSDPSftWorker):
         )
 
         data_loader = CFGDataLoaderImpl(data_config, torch_data_loader)
-        return data_loader, data_loader.data_config()
+
+        eval_data_loaders = []
+        for eval_config in data_cfg.get("eval_data_paths", []) or []:
+            eval_config = dict(eval_config)
+            eval_path = eval_config.get("dataset_path")
+            if not eval_path:
+                continue
+            eval_dataset = _build_dataset(eval_config, eval_dataset=True)
+            max_samples = eval_config.get("max_samples")
+            if max_samples is not None:
+                eval_dataset = torch.utils.data.Subset(
+                    eval_dataset,
+                    range(min(int(max_samples), len(eval_dataset))),
+                )
+            eval_loader = self._create_torch_dataloader(
+                eval_dataset,
+                config,
+                openpi_data_loader,
+                shuffle=False,
+                drop_last=False,
+                num_workers=int(
+                    eval_config.get(
+                        "num_workers",
+                        data_cfg.get(
+                            "eval_num_workers",
+                            data_cfg.get("num_workers", config.num_workers),
+                        ),
+                    )
+                ),
+            )
+            eval_name = eval_config.get("name", Path(eval_path).name)
+            eval_data_loaders.append(
+                (eval_name, CFGDataLoaderImpl(data_config, eval_loader))
+            )
+            if self._rank == 0:
+                self.log_info(
+                    f"Loaded eval dataset: {eval_path} "
+                    f"({len(eval_dataset)} samples, name={eval_name})"
+                )
+
+        return data_loader, eval_data_loaders, data_loader.data_config()
 
     def _build_model_transforms(self, data_config: Any) -> list:
         """Replace TokenizePrompt with TokenizePromptWithGuidance in model transforms."""
@@ -304,6 +379,8 @@ class FSDPCfgWorker(FSDPSftWorker):
         config: Any,
         openpi_data_loader: Any,
         shuffle: bool = True,
+        drop_last: bool = True,
+        num_workers: int | None = None,
     ) -> Any:
         """Create PyTorch DataLoader with distributed sampler."""
         batch_size = config.batch_size
@@ -323,13 +400,14 @@ class FSDPCfgWorker(FSDPSftWorker):
 
         # Use data config overrides if available, otherwise fall back to OpenPI defaults.
         data_cfg = self.cfg.get("data", {})
-        num_workers = int(data_cfg.get("num_workers", config.num_workers))
+        if num_workers is None:
+            num_workers = int(data_cfg.get("num_workers", config.num_workers))
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=local_batch_size,
             shuffle=(sampler is None and shuffle),
             sampler=sampler,
-            drop_last=True,
+            drop_last=drop_last,
             num_workers=num_workers,
             pin_memory=True,
             prefetch_factor=4 if num_workers > 0 else None,
@@ -545,6 +623,124 @@ class FSDPCfgWorker(FSDPSftWorker):
                 )
 
             return train_metrics
+
+    def _prepare_cfg_batch(self, observation, actions, advantage):
+        """Move a CFG batch to the worker device."""
+        register_pytree_dataclasses(observation)
+        observation = tree_map(
+            lambda x: (
+                torch.as_tensor(x).contiguous().to(self.device, non_blocking=True)
+            ),
+            observation,
+        )
+        actions = actions.to(torch.float32).to(self.device, non_blocking=True)
+        advantage = advantage.to(self.device, non_blocking=True)
+        return observation, actions, advantage
+
+    @staticmethod
+    def _action_error_metrics(
+        predicted_actions: torch.Tensor,
+        target_actions: torch.Tensor,
+    ) -> dict[str, float]:
+        """Compute MSE/MAE between predicted and target action chunks."""
+        horizon = min(predicted_actions.shape[1], target_actions.shape[1])
+        action_dim = min(predicted_actions.shape[2], target_actions.shape[2])
+        pred = predicted_actions[:, :horizon, :action_dim].to(torch.float32)
+        target = target_actions[:, :horizon, :action_dim].to(torch.float32)
+        diff = pred - target
+        return {
+            "action_mse": diff.square().mean().item(),
+            "action_mae": diff.abs().mean().item(),
+        }
+
+    def run_eval(self) -> dict[str, float]:
+        """Run offline CFG eval and log flow/action reconstruction metrics."""
+        if not self.eval_data_loaders:
+            return {}
+
+        with self.worker_timer():
+            if self.cfg.actor.get("enable_offload", False):
+                with self.device_lock:
+                    self.load_param_and_grad(self.device)
+
+            self.model.eval()
+            final_metrics: dict[str, float] = {}
+            global_sums: dict[str, float] = {}
+            global_count = 0
+            action_eval_batches = int(self.cfg.data.get("eval_action_batches", 0))
+
+            with torch.no_grad():
+                for ds_name, loader in self.eval_data_loaders:
+                    metric_sums: dict[str, float] = {}
+                    metric_counts: dict[str, float] = {}
+                    for batch_idx, (observation, actions, advantage) in enumerate(
+                        loader
+                    ):
+                        observation, actions, advantage = self._prepare_cfg_batch(
+                            observation,
+                            actions,
+                            advantage,
+                        )
+                        batch_size = int(actions.shape[0])
+
+                        with self.amp_context:
+                            loss, metrics_data = self.model(
+                                data={
+                                    "observation": observation,
+                                    "actions": actions,
+                                    "advantage": advantage,
+                                },
+                            )
+                            loss = loss.mean()
+
+                        batch_metrics = {"loss": loss.detach().item()}
+
+                        if action_eval_batches <= 0 or batch_idx < action_eval_batches:
+                            sampled = self.model.sample_actions(observation)
+                            batch_metrics.update(
+                                self._action_error_metrics(
+                                    sampled["actions"],
+                                    actions,
+                                )
+                            )
+
+                        for key, value in batch_metrics.items():
+                            metric_sums[key] = (
+                                metric_sums.get(key, 0.0) + float(value) * batch_size
+                            )
+                            metric_counts[key] = (
+                                metric_counts.get(key, 0.0) + batch_size
+                            )
+
+                    if not metric_sums:
+                        continue
+
+                    reduce_payload = dict(metric_sums)
+                    reduce_payload.update(
+                        {f"{key}__count": value for key, value in metric_counts.items()}
+                    )
+                    reduced = all_reduce_dict(
+                        reduce_payload,
+                        op=torch.distributed.ReduceOp.SUM,
+                    )
+                    ds_metrics = {}
+                    for key in metric_sums:
+                        count = max(reduced.get(f"{key}__count", 0.0), 1.0)
+                        ds_metrics[key] = reduced.get(key, 0.0) / count
+                    for key, value in ds_metrics.items():
+                        final_metrics[f"{ds_name}/{key}"] = value
+                        global_sums[key] = global_sums.get(key, 0.0) + value
+                    global_count += 1
+
+            if global_count > 0:
+                for key, value in global_sums.items():
+                    final_metrics[key] = value / global_count
+
+            if self.cfg.actor.get("enable_offload", False):
+                with self.device_lock:
+                    self.offload_param_and_grad()
+
+            return final_metrics
 
     def set_global_step(self, global_step):
         self.global_step = global_step

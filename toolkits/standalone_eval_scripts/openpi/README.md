@@ -13,6 +13,10 @@ export REPO_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 export PYTHONPATH=${REPO_PATH}:${PYTHONPATH}
 ```
 
+## RECAP / CFG Policy Server
+
+To deploy an RLinf RECAP checkpoint with OpenPI's websocket policy server protocol, see [RLinf Checkpoint 转 OpenPI Policy Server 部署](RECAP_POLICY_SERVER.md).
+
 ## Evaluation Scripts
 ### Parameters
 
@@ -119,4 +123,3 @@ python toolkits/standalone_eval_scripts/openpi/calvin_eval.py \
     --num_save_videos 10 \
     --video_temp_subsample 10
 ```
-

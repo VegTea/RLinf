@@ -30,42 +30,57 @@ runner:
   max_epochs: 30000
   max_steps: -1
   val_check_interval: 500
-  save_interval: 3000
+  save_interval: 1000
+  best_checkpoint:
+    enable: true
+    metric: "eval/value_spearman"
+    mode: "max"
+    top_k: 3
 
 data:
-  data_root: ${oc.env:REPO_PATH}/data/recap/tower-of-hanoi-game_split
+  data_root: /inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap
   tag: tower-of-hanoi-game
 
   train_data_paths:
-    - dataset_path: expert/train
+    - dataset_path: phase1/tower_of_hanoi_game_split/expert/train
       type: "sft"
       weight: 1.0
       robot_type: "yam"
       model_type: "pi05"
-    - dataset_path: success_hil/train
+    - dataset_path: phase1/tower_of_hanoi_game_split/success_hil/train
       type: "sft"
       weight: 1.0
       robot_type: "yam"
       model_type: "pi05"
-    - dataset_path: failure/train
+    - dataset_path: phase1/tower_of_hanoi_game_split/failure/train
       type: "failure"
+      weight: 1.0
+      robot_type: "yam"
+      model_type: "pi05"
+    - dataset_path: phase2/tower_of_hanoi_game_hil_split/train
+      type: "sft"
       weight: 1.0
       robot_type: "yam"
       model_type: "pi05"
 
   eval_data_paths:
-    - name: expert
-      dataset_path: expert/eval
+    - name: phase1_expert
+      dataset_path: phase1/tower_of_hanoi_game_split/expert/eval
       max_samples: 10000
       robot_type: "yam"
       model_type: "pi05"
-    - name: success_hil
-      dataset_path: success_hil/eval
+    - name: phase1_success_hil
+      dataset_path: phase1/tower_of_hanoi_game_split/success_hil/eval
       max_samples: 10000
       robot_type: "yam"
       model_type: "pi05"
-    - name: failure
-      dataset_path: failure/eval
+    - name: phase1_failure
+      dataset_path: phase1/tower_of_hanoi_game_split/failure/eval
+      max_samples: 10000
+      robot_type: "yam"
+      model_type: "pi05"
+    - name: phase2_hil
+      dataset_path: phase2/tower_of_hanoi_game_hil_split/eval
       max_samples: 10000
       robot_type: "yam"
       model_type: "pi05"

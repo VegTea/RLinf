@@ -35,7 +35,15 @@ shift 1 2>/dev/null || true
 EXTRA_ARGS="$@"
 
 echo "Using Python at $(which python)"
-LOG_DIR="${REPO_PATH}/logs/value_sft/${CONFIG_NAME}-$(date +'%Y%m%d-%H:%M:%S')"
+LOG_TIME="$(date +'%Y%m%d-%H:%M:%S')"
+if [ -n "${VALUE_LOG_RUN_NAME:-}" ]; then
+    LOG_RUN_NAME="${VALUE_LOG_RUN_NAME}"
+elif [ -n "${TASK_NAME:-}" ]; then
+    LOG_RUN_NAME="Phase2+${TASK_NAME}+${LOG_TIME}"
+else
+    LOG_RUN_NAME="${CONFIG_NAME}-${LOG_TIME}"
+fi
+LOG_DIR="${REPO_PATH}/logs/value_sft/${LOG_RUN_NAME}"
 MEGA_LOG_FILE="${LOG_DIR}/run_value_sft.log"
 mkdir -p "${LOG_DIR}"
 HYDRA_ARGS=("runner.logger.log_path=${LOG_DIR}")

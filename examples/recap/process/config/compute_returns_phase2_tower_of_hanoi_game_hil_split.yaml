@@ -1,0 +1,25 @@
+# Compute returns for merged RSS phase2 YAM tower-of-hanoi-game HIL splits.
+#
+# Usage:
+#   bash examples/recap/process/run_compute_returns.sh compute_returns_phase2_tower_of_hanoi_game_hil_split
+
+data:
+  data_root: /inspire/qb-ilm/project/gjjproject/public/xl/data/rss_challenge/recap/phase2
+  train_data_paths:
+    - dataset_path: tower_of_hanoi_game_hil_split/train
+      type: sft
+    - dataset_path: tower_of_hanoi_game_hil_split/eval
+      type: sft
+
+  dataset_type: "sft"
+  gamma: 1.0
+  failure_reward: -2000.0
+  tag: tower-of-hanoi-game
+  num_workers: 128
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false
