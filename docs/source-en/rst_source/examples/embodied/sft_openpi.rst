@@ -61,6 +61,8 @@ RLinf supports LeRobot-format datasets, selected via the ``config_name`` field. 
      - RoboTwin (ALOHA)
    * - ``pi0_realworld``
      - Real-world Franka
+   * - ``pi05_droid``
+     - DROID Franka (joint-velocity)
    * - ``pi05_metaworld``
      - MetaWorld
    * - ``pi05_calvin``
@@ -221,3 +223,51 @@ every logged metric, see :doc:`Training metrics <../../reference/metrics>`.
 
    # Launch TensorBoard
    tensorboard --logdir ./logs
+
+Fine-tuning Franka from official π₀.₅-DROID
+----------------------------------------------
+
+``droid_sft_openpi_pi05`` fine-tunes the official ``pi05_droid`` checkpoint on
+local DROID-style Franka data. The example is configured for
+``/inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force``. It
+uses ``exterior_image_1_left``, ``wrist_image_left``, seven-dimensional
+``joint_position``, and ``gripper_position``. Absolute joint targets in this
+dataset are converted at 15 Hz to the joint-velocity actions expected by the
+official checkpoint; gripper commands remain absolute.
+
+First convert the official JAX checkpoint to OpenPI PyTorch and set its path.
+Then generate normalization statistics for the converted velocity actions:
+
+.. code:: bash
+
+   export PI05_DROID_MODEL_PATH=/path/to/pi05_droid_pytorch
+   export PI05_DROID_NORM_STATS=/path/to/pi05_droid_wipe_board_norm_stats
+
+   python toolkits/lerobot/calculate_norm_stats.py \
+       --config-name pi05_droid \
+       --repo-id /inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force \
+       --output-dir "$PI05_DROID_NORM_STATS"
+
+   bash examples/sft/run_vla_sft.sh droid_sft_openpi_pi05
+
+Do not use ``pi05_droid_polaris`` for this workflow: it is a joint-position
+PolaRiS adapter and is incompatible with the official DROID joint-velocity
+checkpoint.
+
+Exporting a π₀.₅-DROID model-input video
+------------------------------------------
+
+Use the following tool to export the model image inputs for one episode. From
+left to right, every frame contains ``base_0_rgb`` (``exterior_image_1_left``),
+``left_wrist_0_rgb`` (``wrist_image_left``), and the all-zero,
+official-DROID-masked ``right_wrist_0_rgb``. Images are processed with the
+official ``resize_with_pad(224, 224)`` transform.
+
+.. code:: bash
+
+   python toolkits/lerobot/extract_openpi_droid_inputs_video.py \
+       --episode-index 0
+
+By default, the video is written to
+``outputs/extract_videos/episode_000000_pi05_droid_inputs.mp4``. Use
+``--dataset-path``, ``--output-dir``, or ``--fps`` to override the defaults.

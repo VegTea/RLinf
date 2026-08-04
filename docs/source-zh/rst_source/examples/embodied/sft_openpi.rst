@@ -60,6 +60,8 @@ RLinf 支持 LeRobot 格式的数据集，通过 ``config_name`` 字段指定。
      - RoboTwin（ALOHA）
    * - ``pi0_realworld``
      - 真机 Franka
+   * - ``pi05_droid``
+     - DROID Franka（joint-velocity）
    * - ``pi05_metaworld``
      - MetaWorld
    * - ``pi05_calvin``
@@ -222,3 +224,47 @@ OpenPI 加载器会在运行时从 ``<model_path>/<repo_id>`` 读取归一化统
 
    # 启动 TensorBoard
    tensorboard --logdir ./logs
+
+使用官方 π₀.₅-DROID 微调 Franka
+----------------------------------------
+
+``droid_sft_openpi_pi05`` 用于将官方 ``pi05_droid`` 检查点微调到本地 DROID
+风格 Franka 数据。示例数据路径已配置为
+``/inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force``。它使用
+``exterior_image_1_left``、``wrist_image_left``、7 维 ``joint_position`` 和
+``gripper_position``。数据集中的绝对关节目标会按 15 Hz 转为官方检查点所需的
+joint-velocity 动作；夹爪命令保持绝对值。
+
+先将官方 JAX 检查点转换为 OpenPI PyTorch 格式，并设置模型路径。然后为转换后的
+velocity 动作生成归一化统计：
+
+.. code:: bash
+
+   export PI05_DROID_MODEL_PATH=/path/to/pi05_droid_pytorch
+   export PI05_DROID_NORM_STATS=/path/to/pi05_droid_wipe_board_norm_stats
+
+   python toolkits/lerobot/calculate_norm_stats.py \
+       --config-name pi05_droid \
+       --repo-id /inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force \
+       --output-dir "$PI05_DROID_NORM_STATS"
+
+   bash examples/sft/run_vla_sft.sh droid_sft_openpi_pi05
+
+该配置不使用 ``pi05_droid_polaris``，后者是 joint-position / PolaRiS 适配，不能与
+官方 DROID joint-velocity 检查点混用。
+
+导出 π₀.₅-DROID 模型图像输入视频
+------------------------------------------
+
+使用以下工具导出单个 episode 的模型图像输入视频。每一帧从左到右依次为
+``base_0_rgb``（``exterior_image_1_left``）、``left_wrist_0_rgb``
+（``wrist_image_left``）和官方 DROID policy 掩蔽的全零 ``right_wrist_0_rgb``。
+图像会按官方 ``resize_with_pad(224, 224)`` 处理。
+
+.. code:: bash
+
+   python toolkits/lerobot/extract_openpi_droid_inputs_video.py \
+       --episode-index 0
+
+视频默认保存至 ``outputs/extract_videos/episode_000000_pi05_droid_inputs.mp4``。
+用 ``--dataset-path``、``--output-dir`` 和 ``--fps`` 可覆盖默认值。
