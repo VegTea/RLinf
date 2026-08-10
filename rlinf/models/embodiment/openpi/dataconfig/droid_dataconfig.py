@@ -34,6 +34,34 @@ def _parse_image(image: np.ndarray) -> np.ndarray:
     return image
 
 
+def transform_pi05_droid_numeric_episode(
+    joint_positions: np.ndarray,
+    gripper_positions: np.ndarray,
+    absolute_actions: np.ndarray,
+    *,
+    action_horizon: int,
+    action_dim: int,
+    control_frequency_hz: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform one numeric DROID episode exactly like the OpenPI loader."""
+    states = np.concatenate([joint_positions, gripper_positions], axis=-1)
+    frame_offsets = np.arange(action_horizon)[None, :]
+    action_indices = np.minimum(
+        np.arange(len(states))[:, None] + frame_offsets, len(states) - 1
+    )
+    action_chunks = absolute_actions[action_indices].copy()
+    previous_joint_positions = np.concatenate(
+        [joint_positions[:, None, :], action_chunks[:, :-1, :7]], axis=1
+    )
+    action_chunks[:, :, :7] = (
+        action_chunks[:, :, :7] - previous_joint_positions
+    ) * control_frequency_hz
+    return (
+        _transforms.pad_to_dim(states, action_dim),
+        _transforms.pad_to_dim(action_chunks, action_dim),
+    )
+
+
 @dataclasses.dataclass(frozen=True)
 class JointPositionActionsToVelocity(_transforms.DataTransformFn):
     """Convert absolute Panda joint targets to DROID joint-velocity actions.
@@ -47,6 +75,11 @@ class JointPositionActionsToVelocity(_transforms.DataTransformFn):
     control_frequency_hz: float
 
     def __call__(self, data: dict) -> dict:
+        # The same input transform is used for training and policy inference.
+        # Inference observations intentionally do not contain expert actions.
+        if "actions" not in data:
+            return data
+
         actions = np.asarray(data["actions"]).copy()
         state = np.asarray(data["state"])
         if actions.ndim != 2 or actions.shape[-1] < 8:
@@ -75,6 +108,7 @@ class DroidJointVelocityInputs(_transforms.DataTransformFn):
     """Map the local DROID-style LeRobot fields to official OpenPI inputs."""
 
     action_dim: int
+    exterior_image_key: str = "observation/exterior_image_2_left"
     model_type: _model.ModelType = _model.ModelType.PI05
 
     def __call__(self, data: dict) -> dict:
@@ -93,11 +127,12 @@ class DroidJointVelocityInputs(_transforms.DataTransformFn):
                 f"gripper state, got {state.shape}."
             )
 
-        base_image = _parse_image(data["observation/exterior_image_1_left"])
+        base_image = _parse_image(data[self.exterior_image_key])
         wrist_image = _parse_image(data["observation/wrist_image_left"])
-        # The released DROID policy uses the exterior and wrist-left cameras.
+        # Map the selected exterior view and wrist camera to the two active
+        # pi0.5-DROID image slots. The wipe-board default uses the right view.
         # Keep the third pi0.5 image slot masked rather than assigning the
-        # unrelated second exterior camera to a pretrained wrist-camera slot.
+        # other exterior camera to a pretrained wrist-camera slot.
         images = (base_image, wrist_image, np.zeros_like(base_image))
         inputs = {
             "state": _transforms.pad_to_dim(state, self.action_dim),
@@ -138,15 +173,32 @@ class LeRobotDroidJointVelocityDataConfig(DataConfigFactory):
 
     control_frequency_hz: float = 15.0
     default_prompt: str | None = None
+    exterior_image_key: str = "observation/exterior_image_2_left"
 
     @override
     def create(
         self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig
     ) -> DataConfig:
+        repack_transforms = _transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        "observation/exterior_image_1_left": "exterior_image_1_left",
+                        "observation/exterior_image_2_left": "exterior_image_2_left",
+                        "observation/wrist_image_left": "wrist_image_left",
+                        "observation/joint_position": "joint_position",
+                        "observation/gripper_position": "gripper_position",
+                        "actions": "actions",
+                        "prompt": "prompt",
+                    }
+                )
+            ]
+        )
         data_transforms = _transforms.Group(
             inputs=[
                 DroidJointVelocityInputs(
                     action_dim=model_config.action_dim,
+                    exterior_image_key=self.exterior_image_key,
                     model_type=model_config.model_type,
                 ),
                 JointPositionActionsToVelocity(self.control_frequency_hz),
@@ -158,6 +210,7 @@ class LeRobotDroidJointVelocityDataConfig(DataConfigFactory):
         )
         return dataclasses.replace(
             self.create_base_config(assets_dirs, model_config),
+            repack_transforms=repack_transforms,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
         )

@@ -230,25 +230,117 @@ Fine-tuning Franka from official π₀.₅-DROID
 ``droid_sft_openpi_pi05`` fine-tunes the official ``pi05_droid`` checkpoint on
 local DROID-style Franka data. The example is configured for
 ``/inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force``. It
-uses ``exterior_image_1_left``, ``wrist_image_left``, seven-dimensional
-``joint_position``, and ``gripper_position``. Absolute joint targets in this
-dataset are converted at 15 Hz to the joint-velocity actions expected by the
-official checkpoint; gripper commands remain absolute.
+uses the right exterior view ``exterior_image_2_left``, ``wrist_image_left``,
+seven-dimensional ``joint_position``, and ``gripper_position``. The third model
+image slot is zero-filled and masked. Absolute joint targets in this dataset are
+converted at 15 Hz to the joint-velocity actions expected by the official
+checkpoint; gripper commands remain absolute.
 
-First convert the official JAX checkpoint to OpenPI PyTorch and set its path.
-Then generate normalization statistics for the converted velocity actions:
+By default, seed 0 holds out 20 complete trajectories and trains on the other
+176, so frames from a test trajectory never enter the training loader. This is
+130,650 training frames and 14,361 test frames for the current dataset. Every
+1,000 optimizer steps, RLinf decodes 10 fixed-noise action chunks from each
+held-out trajectory (200 chunks total) and logs normalized-action, joint-
+velocity, gripper-position, and integrated joint-position MSE/MAE under
+``eval/``. The exact episode IDs and chunk offsets are saved in
+``episode_split.json`` under the experiment directory.
+
+The checked-in expert-only FSDP configuration was smoke-tested for three
+optimizer steps on two RTX 4090 GPUs. It keeps the frozen vision-language tower
+replicated and manually wraps the composite OpenPI expert module because OpenPI
+executes the inner Gemma layer components directly.
+
+The checked-in example defaults to the local paths below. Override the first
+two variables only when the checkpoint or statistics live elsewhere. Set
+``OPENPI_DATA_HOME`` to the local tokenizer cache, then launch SFT:
 
 .. code:: bash
 
-   export PI05_DROID_MODEL_PATH=/path/to/pi05_droid_pytorch
-   export PI05_DROID_NORM_STATS=/path/to/pi05_droid_wipe_board_norm_stats
+   export PI05_DROID_MODEL_PATH=/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch
+   export PI05_DROID_NORM_STATS="$PI05_DROID_MODEL_PATH/assets/wipe_board_v1_zed196_force"
+   export OPENPI_DATA_HOME=/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/openpi_cache
+
+   CUDA_VISIBLE_DEVICES=0,1 bash examples/sft/run_vla_sft.sh droid_sft_openpi_pi05
+
+For a production expert-only run on four H100 GPUs, use the checked entry point
+below. It defaults to micro batch 16 per GPU, global batch 64, peak learning
+rate ``5e-5``, 500 warmup steps, cosine decay, and 10,000 optimizer steps. It
+also samples GPU memory and utilization once per second into ``gpu_metrics.csv``.
+At global batch 64, this processes about 640,000 samples, or 4.9 passes over
+the 130,650-frame training split.
+
+.. code:: bash
+
+   CUDA_VISIBLE_DEVICES=0,1,2,3 \
+   bash examples/sft/pi05_droid_wipe_board/run_h100_train.sh
+
+The script writes each run to a timestamped directory under
+``outputs/pi05_droid_h100_train/``. These defaults are a safe starting point
+from a dual-4090 sweep; select the final checkpoint with decoded action metrics
+and robot success rate, and re-run a batch probe before increasing the H100
+batch.
+
+JAX-aligned RLinf PyTorch implementation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The command above uses the official OpenPI PyTorch wrapper (``model_type:
+openpi``). To compare against OpenPI JAX with RLinf's self-contained,
+JAX-aligned implementation, use ``droid_sft_openpi_pytorch_pi05``
+(``model_type: openpi_pytorch``). Convert the official JAX checkpoint with the
+``jax2new`` converter first; the resulting directory must contain
+``model.safetensors`` and the wipe-board normalization assets.
+
+The aligned recipe keeps FP32 optimizer master weights, uses BF16 FSDP compute
+and FP32 reductions, enables non-reentrant gradient checkpointing, and freezes
+SigLIP, Gemma expert 0, and the shared embedding. Gemma action expert 1 and the
+action/time projections remain trainable. It uses the same 176/20 trajectory
+split and decoded evaluation as the official-wrapper baseline.
+
+.. code:: bash
+
+   export PI05_DROID_RLINF_MODEL_PATH=/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch_rlinf
+   export PI05_DROID_RLINF_NORM_STATS="$PI05_DROID_RLINF_MODEL_PATH/assets/wipe_board_v1_zed196_force"
+
+   # One update and one 20-chunk decoded evaluation.
+   CUDA_VISIBLE_DEVICES=0,1,2,3 \
+   bash examples/sft/pi05_droid_wipe_board/run_openpi_pytorch_h100_smoke.sh
+
+   # 10,000 updates and 200-chunk evaluation every 1,000 updates.
+   CUDA_VISIBLE_DEVICES=0,1,2,3 \
+   bash examples/sft/pi05_droid_wipe_board/run_openpi_pytorch_h100_train.sh
+
+Aligned runs are written below ``outputs/pi05_droid_openpi_pytorch_h100/``.
+Do not point this configuration at the older official-wrapper
+``model.safetensors``: its parameter layout differs from the ``jax2new``
+checkpoint and strict loading will reject it.
+
+Once all runs finish, generate a three-way decoded-metric comparison without
+mixing up the two PyTorch implementations:
+
+.. code:: bash
+
+   python examples/sft/pi05_droid_wipe_board/compare_sft_evaluations.py \
+       --jax-metrics /path/to/openpi/eval_metrics.json \
+       --aligned-rlinf-run /path/to/openpi_pytorch_run \
+       --wrapper-baseline-run /path/to/openpi_wrapper_run \
+       --output /path/to/final_eval_comparison.json
+
+The tool maps RLinf TensorBoard step ``N - 1`` back to checkpoint ``N``, checks
+that every decoded metric row is complete and finite, and keeps the aligned
+implementation and official-wrapper baseline under distinct result names.
+
+The wipe-board normalization statistics have already been generated at the
+path above. To regenerate them, use the image-free numeric path; it preserves
+the official 15-step action-chunk and episode-end padding semantics without
+decoding the three parquet-embedded camera streams:
+
+.. code:: bash
 
    python toolkits/lerobot/calculate_norm_stats.py \
        --config-name pi05_droid \
        --repo-id /inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force \
-       --output-dir "$PI05_DROID_NORM_STATS"
-
-   bash examples/sft/run_vla_sft.sh droid_sft_openpi_pi05
+       --output-dir "$PI05_DROID_NORM_STATS" \
+       --numeric-only
 
 Do not use ``pi05_droid_polaris`` for this workflow: it is a joint-position
 PolaRiS adapter and is incompatible with the official DROID joint-velocity
@@ -258,10 +350,11 @@ Exporting a π₀.₅-DROID model-input video
 ------------------------------------------
 
 Use the following tool to export the model image inputs for one episode. From
-left to right, every frame contains ``base_0_rgb`` (``exterior_image_1_left``),
-``left_wrist_0_rgb`` (``wrist_image_left``), and the all-zero,
-official-DROID-masked ``right_wrist_0_rgb``. Images are processed with the
-official ``resize_with_pad(224, 224)`` transform.
+left to right, every frame contains ``base_0_rgb`` (the selected exterior
+camera), ``left_wrist_0_rgb`` (``wrist_image_left``), and the all-zero,
+official-DROID-masked ``right_wrist_0_rgb``. The right exterior view
+(``exterior_image_2_left``) is selected by default. Images are processed with
+the official ``resize_with_pad(224, 224)`` transform.
 
 .. code:: bash
 
@@ -270,4 +363,61 @@ official ``resize_with_pad(224, 224)`` transform.
 
 By default, the video is written to
 ``outputs/extract_videos/episode_000000_pi05_droid_inputs.mp4``. Use
-``--dataset-path``, ``--output-dir``, or ``--fps`` to override the defaults.
+``--external-camera left`` to select ``exterior_image_1_left`` instead. Use
+``--dataset-path``, ``--output-dir``, or ``--fps`` to override other defaults.
+
+Serving π₀.₅-DROID with absolute joint targets
+------------------------------------------------
+
+The deployment entry point below uses OpenPI's ``WebsocketPolicyServer``. It
+keeps the wipe-board input mapping (right exterior camera, wrist camera, and a
+masked zero third slot), then converts the unnormalized seven-dimensional
+joint-velocity chunk into absolute joint targets. For a control frequency
+``f=15 Hz``, it computes
+``q_target[k] = q_current + cumsum(dq[0:k]) / f``. The eighth, absolute gripper
+command is passed through unchanged.
+
+Start the policy server on the GPU machine. All paths must be local; the
+command explicitly removes proxy variables and therefore performs no proxied
+model or data download:
+
+.. code:: bash
+
+   unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+   export OPENPI_DATA_HOME=/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/openpi_cache
+
+   python toolkits/standalone_eval_scripts/openpi/serve_pi05_droid.py \
+       --checkpoint-dir /inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch \
+       --norm-stats-dir /inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch/assets/wipe_board_v1_zed196_force \
+       --control-frequency-hz 15 \
+       --pytorch-device cuda \
+       --host 0.0.0.0 \
+       --port 8000
+
+Use the normalization statistics associated with the deployed checkpoint. The
+path above is for the wipe-board SFT data. The untouched official checkpoint
+instead uses ``assets/droid``.
+
+The DROID robot process can use OpenPI's official client. Each request must
+contain the current robot state; each response contains a ``(15, 8)`` absolute
+action chunk:
+
+.. code:: python
+
+   from openpi_client.websocket_client_policy import WebsocketClientPolicy
+
+   policy = WebsocketClientPolicy(host="GPU_SERVER_IP", port=8000)
+   result = policy.infer(
+       {
+           "observation/exterior_image_2_left": right_image_uint8_hwc,
+           "observation/wrist_image_left": wrist_image_uint8_hwc,
+           "observation/joint_position": joint_position_float32_7,
+           "observation/gripper_position": gripper_position_float32_1,
+           "prompt": "wipe the whiteboard",
+       }
+   )
+   absolute_action_chunk = result["actions"]
+
+Send the chunk's waypoints to the robot sequentially at 15 Hz. The conversion
+does not replace robot-side joint limits, per-step motion limits, watchdogs, or
+emergency-stop handling. Validate those protections before enabling motion.

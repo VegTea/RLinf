@@ -93,6 +93,7 @@ def _build_eval_model(
 
 
 def _build_sft_model(
+    model_cfg,
     model,
     *,
     num_steps,
@@ -105,15 +106,25 @@ def _build_sft_model(
     pipeline the eval/RL paths use, so the SFT model holds no processor and no
     transforms — it just computes the flow-matching loss.
     """
+    from omegaconf import OmegaConf
+
     from rlinf.models.embodiment.openpi_pytorch.sft_action_model import (
         OpenPiPytorchSFTActionModel,
     )
 
-    return OpenPiPytorchSFTActionModel(
+    sft_model = OpenPiPytorchSFTActionModel(
         model,
         num_steps=num_steps,
         action_env_dim=action_env_dim,
     )
+    if bool(OmegaConf.select(model_cfg, "train_expert_only", default=False)):
+        frozen = sft_model.freeze_vlm()
+        logger.info(
+            "openpi_pytorch[sft]: train_expert_only=True; froze %d parameter "
+            "tensors (SigLIP + Gemma expert-0 + shared embedding)",
+            frozen,
+        )
+    return sft_model
 
 
 def _build_rl_model(

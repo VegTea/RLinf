@@ -43,14 +43,30 @@ class OpenPiPytorchSFTActionModel(OpenPiPytorchActionModel):
         )
 
     def forward(self, forward_type: ForwardType = ForwardType.SFT, **kwargs):
-        """Dispatch — SFT variant only supports :attr:`ForwardType.SFT`."""
-        if forward_type != ForwardType.SFT:
-            raise NotImplementedError(
-                f"{type(self).__name__} only supports ForwardType.SFT; "
-                f"got forward_type={forward_type!r}. "
-                "Use the RL subclass (actor.model.openpi.task='rl') for PPO."
+        """Dispatch SFT loss or deterministic action decoding for validation."""
+        if forward_type == ForwardType.SFT:
+            return self.sft_forward(**kwargs)
+        if forward_type == ForwardType.ACTION_SAMPLE:
+            return self.sample_actions_forward(**kwargs)
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support {forward_type!r}."
+        )
+
+    def sample_actions_forward(
+        self, data: Any, noise: Any | None = None
+    ) -> torch.Tensor:
+        """Decode an action chunk using caller-provided deterministic noise."""
+        observation, _ = self._unpack_sft_batch(data)
+        observation = self._observation_to_device(observation)
+        if noise is not None:
+            noise = torch.as_tensor(
+                noise, device=self.device, dtype=observation.state.dtype
             )
-        return self.sft_forward(**kwargs)
+        return self.model.sample_actions(
+            observation,
+            num_steps=self.num_steps,
+            noise=noise,
+        )
 
     def sft_forward(self, data: Any) -> torch.Tensor:
         """Compute the flow-matching SFT loss for one batch.
@@ -97,6 +113,25 @@ class OpenPiPytorchSFTActionModel(OpenPiPytorchActionModel):
     def _observation_to_device(self, observation: Any) -> Observation:
         if isinstance(observation, dict):
             observation = Observation.from_dict(observation)
+        elif not isinstance(observation, Observation) and all(
+            hasattr(observation, field) for field in ("images", "image_masks", "state")
+        ):
+            # OpenPI's transformed LeRobot loader returns its own Observation
+            # dataclass.  The fields are intentionally API-compatible with the
+            # vendored JAX-aligned implementation, so convert without changing
+            # any tensor values.
+            observation = Observation(
+                images=observation.images,
+                image_masks=observation.image_masks,
+                state=observation.state,
+                tokenized_prompt=getattr(observation, "tokenized_prompt", None),
+                tokenized_prompt_mask=getattr(
+                    observation, "tokenized_prompt_mask", None
+                ),
+                token_ar_mask=getattr(observation, "token_ar_mask", None),
+                token_loss_mask=getattr(observation, "token_loss_mask", None),
+                pcd_xyz=getattr(observation, "pcd_xyz", None),
+            )
         if not isinstance(observation, Observation):
             raise TypeError(
                 f"SFT observation must be an Observation or dict; "

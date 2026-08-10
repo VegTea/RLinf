@@ -231,24 +231,101 @@ OpenPI 加载器会在运行时从 ``<model_path>/<repo_id>`` 读取归一化统
 ``droid_sft_openpi_pi05`` 用于将官方 ``pi05_droid`` 检查点微调到本地 DROID
 风格 Franka 数据。示例数据路径已配置为
 ``/inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force``。它使用
-``exterior_image_1_left``、``wrist_image_left``、7 维 ``joint_position`` 和
-``gripper_position``。数据集中的绝对关节目标会按 15 Hz 转为官方检查点所需的
-joint-velocity 动作；夹爪命令保持绝对值。
+右侧外部视角 ``exterior_image_2_left``、``wrist_image_left``、7 维
+``joint_position`` 和 ``gripper_position``；模型第三路图像以全零填充并掩蔽。
+数据集中的绝对关节目标会按 15 Hz 转为官方检查点所需的 joint-velocity 动作；
+夹爪命令保持绝对值。
 
-先将官方 JAX 检查点转换为 OpenPI PyTorch 格式，并设置模型路径。然后为转换后的
-velocity 动作生成归一化统计：
+默认使用 seed 0 随机留出 20 条完整轨迹，并使用其余 176 条训练，因此测试轨迹中的帧
+不会进入训练 loader。对于当前数据集，这对应 130,650 个训练帧和 14,361 个测试帧。
+RLinf 每隔 1,000 个 optimizer step，从每条测试轨迹解码 10 个固定噪声 action chunk
+（共 200 个），并在 ``eval/`` 下记录归一化 action、joint velocity、gripper position
+及积分后 joint position 的 MSE/MAE。具体 episode ID 和 chunk offset 会写入实验目录下
+的 ``episode_split.json``。
+
+仓库中的 expert-only FSDP 配置已在双 RTX 4090 上完成 3 个 optimizer step 的
+smoke test。配置让冻结的视觉语言塔在各卡复制，并手工包装 OpenPI 的复合 expert
+模块，因为 OpenPI 会直接执行内部 Gemma layer 的组件。
+
+仓库中的示例默认使用下面的本地路径；只有 checkpoint 或统计量位于其他位置时才需
+覆盖前两个变量。将 ``OPENPI_DATA_HOME`` 指向本地 tokenizer cache，然后启动 SFT：
 
 .. code:: bash
 
-   export PI05_DROID_MODEL_PATH=/path/to/pi05_droid_pytorch
-   export PI05_DROID_NORM_STATS=/path/to/pi05_droid_wipe_board_norm_stats
+   export PI05_DROID_MODEL_PATH=/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch
+   export PI05_DROID_NORM_STATS="$PI05_DROID_MODEL_PATH/assets/wipe_board_v1_zed196_force"
+   export OPENPI_DATA_HOME=/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/openpi_cache
+
+   CUDA_VISIBLE_DEVICES=0,1 bash examples/sft/run_vla_sft.sh droid_sft_openpi_pi05
+
+在 4 张 H100 上进行正式的 expert-only 训练时，使用下面经过检查的入口。默认配置为
+每卡 micro batch 16、global batch 64、峰值学习率 ``5e-5``、500 个 warmup
+step、cosine 衰减和 10,000 个 optimizer step。脚本还会每秒将 GPU 显存和利用率
+采样到 ``gpu_metrics.csv``。global batch 为 64 时共处理约 640,000 个样本，相当于
+对 130,650 帧训练划分训练约 4.9 遍。
+
+.. code:: bash
+
+   CUDA_VISIBLE_DEVICES=0,1,2,3 \
+   bash examples/sft/pi05_droid_wipe_board/run_h100_train.sh
+
+每次运行会写入 ``outputs/pi05_droid_h100_train/`` 下带时间戳的目录。这组默认值是
+根据双 4090 sweep 得到的安全起点；最终 checkpoint 应结合解码 action 指标和真机
+成功率选择，在增大 H100 batch 前也应重新运行 batch probe。
+
+与 JAX 对齐的 RLinf PyTorch 实现
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+上面的命令使用 OpenPI 官方 PyTorch wrapper（``model_type: openpi``）。如需与 OpenPI
+JAX 对比，应使用 RLinf 自包含、与 JAX 对齐的 ``droid_sft_openpi_pytorch_pi05``
+（``model_type: openpi_pytorch``）。首先用 ``jax2new`` 转换器转换官方 JAX checkpoint；
+输出目录必须包含 ``model.safetensors`` 和擦白板归一化资产。
+
+对齐配置使用 FP32 optimizer 主权重、BF16 FSDP 计算、FP32 reduce，并启用非重入式
+gradient checkpointing。SigLIP、Gemma expert 0 和共享 embedding 会被冻结，只有
+Gemma action expert 1 以及 action/time projection 参与训练。它与官方 wrapper baseline
+使用相同的 176/20 轨迹划分及解码评估。
+
+.. code:: bash
+
+   export PI05_DROID_RLINF_MODEL_PATH=/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch_rlinf
+   export PI05_DROID_RLINF_NORM_STATS="$PI05_DROID_RLINF_MODEL_PATH/assets/wipe_board_v1_zed196_force"
+
+   # 一个更新 step，并解码评估 20 个 chunk。
+   CUDA_VISIBLE_DEVICES=0,1,2,3 \
+   bash examples/sft/pi05_droid_wipe_board/run_openpi_pytorch_h100_smoke.sh
+
+   # 训练 10,000 step；每 1,000 step 解码评估 200 个 chunk。
+   CUDA_VISIBLE_DEVICES=0,1,2,3 \
+   bash examples/sft/pi05_droid_wipe_board/run_openpi_pytorch_h100_train.sh
+
+对齐版本输出到 ``outputs/pi05_droid_openpi_pytorch_h100/``。不要把旧版官方 wrapper 的
+``model.safetensors`` 直接传给该配置：两者参数布局不同，strict load 会明确拒绝。
+
+所有训练结束后，用下面的命令生成三方解码指标对比，避免混淆两个 PyTorch 实现：
+
+.. code:: bash
+
+   python examples/sft/pi05_droid_wipe_board/compare_sft_evaluations.py \
+       --jax-metrics /path/to/openpi/eval_metrics.json \
+       --aligned-rlinf-run /path/to/openpi_pytorch_run \
+       --wrapper-baseline-run /path/to/openpi_wrapper_run \
+       --output /path/to/final_eval_comparison.json
+
+该工具会把 RLinf TensorBoard step ``N - 1`` 映射回 checkpoint ``N``，检查每条解码
+指标是否完整且为有限值，并在结果中分别标识对齐实现和官方 wrapper baseline。
+
+擦白板数据的归一化统计已生成到上述路径。如需重新生成，使用无需解码图像的数值列
+快速路径；它会保留官方 15-step action chunk 和 episode 尾部 padding 语义，同时
+跳过 parquet 内嵌的三路相机图像：
+
+.. code:: bash
 
    python toolkits/lerobot/calculate_norm_stats.py \
        --config-name pi05_droid \
        --repo-id /inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force \
-       --output-dir "$PI05_DROID_NORM_STATS"
-
-   bash examples/sft/run_vla_sft.sh droid_sft_openpi_pi05
+       --output-dir "$PI05_DROID_NORM_STATS" \
+       --numeric-only
 
 该配置不使用 ``pi05_droid_polaris``，后者是 joint-position / PolaRiS 适配，不能与
 官方 DROID joint-velocity 检查点混用。
@@ -257,9 +334,10 @@ velocity 动作生成归一化统计：
 ------------------------------------------
 
 使用以下工具导出单个 episode 的模型图像输入视频。每一帧从左到右依次为
-``base_0_rgb``（``exterior_image_1_left``）、``left_wrist_0_rgb``
+``base_0_rgb``（选中的外部相机）、``left_wrist_0_rgb``
 （``wrist_image_left``）和官方 DROID policy 掩蔽的全零 ``right_wrist_0_rgb``。
-图像会按官方 ``resize_with_pad(224, 224)`` 处理。
+默认选择右侧外部视角 ``exterior_image_2_left``。图像会按官方
+``resize_with_pad(224, 224)`` 处理。
 
 .. code:: bash
 
@@ -267,4 +345,54 @@ velocity 动作生成归一化统计：
        --episode-index 0
 
 视频默认保存至 ``outputs/extract_videos/episode_000000_pi05_droid_inputs.mp4``。
-用 ``--dataset-path``、``--output-dir`` 和 ``--fps`` 可覆盖默认值。
+用 ``--external-camera left`` 可改选 ``exterior_image_1_left``；用
+``--dataset-path``、``--output-dir`` 和 ``--fps`` 可覆盖其他默认值。
+
+以绝对关节目标部署 π₀.₅-DROID
+------------------------------------------
+
+下面的部署入口使用 OpenPI 的 ``WebsocketPolicyServer``。它保持擦白板训练的输入
+映射（右侧外部相机、腕部相机、掩蔽的全零第三路），并在模型动作反归一化后将 7 维
+joint-velocity chunk 转成绝对关节目标。控制频率 ``f=15 Hz`` 时，计算方式为
+``q_target[k] = q_current + cumsum(dq[0:k]) / f``；第 8 维绝对夹爪命令保持不变。
+
+在 GPU 机器启动 policy server。所有路径都必须是本地路径；命令会显式清除代理
+变量，因此不会通过代理下载模型或数据：
+
+.. code:: bash
+
+   unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+   export OPENPI_DATA_HOME=/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/openpi_cache
+
+   python toolkits/standalone_eval_scripts/openpi/serve_pi05_droid.py \
+       --checkpoint-dir /inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch \
+       --norm-stats-dir /inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch/assets/wipe_board_v1_zed196_force \
+       --control-frequency-hz 15 \
+       --pytorch-device cuda \
+       --host 0.0.0.0 \
+       --port 8000
+
+必须使用与部署 checkpoint 对应的归一化统计。上述路径对应擦白板 SFT 数据；未经
+微调的官方 checkpoint 应改用 ``assets/droid``。
+
+DROID 真机进程可以使用 OpenPI 官方客户端。每次请求必须携带当前机器人状态；每次
+响应包含一个 ``(15, 8)`` 的绝对动作 chunk：
+
+.. code:: python
+
+   from openpi_client.websocket_client_policy import WebsocketClientPolicy
+
+   policy = WebsocketClientPolicy(host="GPU_SERVER_IP", port=8000)
+   result = policy.infer(
+       {
+           "observation/exterior_image_2_left": right_image_uint8_hwc,
+           "observation/wrist_image_left": wrist_image_uint8_hwc,
+           "observation/joint_position": joint_position_float32_7,
+           "observation/gripper_position": gripper_position_float32_1,
+           "prompt": "wipe the whiteboard",
+       }
+   )
+   absolute_action_chunk = result["actions"]
+
+真机端应以 15 Hz 依次发送 chunk 中的目标位置。该转换不能替代真机端的关节限位、
+单步运动限幅、watchdog 和急停；启用机械臂运动前必须验证这些保护措施。

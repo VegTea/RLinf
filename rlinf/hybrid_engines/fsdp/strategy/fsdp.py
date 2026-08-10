@@ -14,6 +14,7 @@
 
 import os
 from contextlib import nullcontext
+from functools import partial
 from typing import ContextManager, Union
 
 import torch
@@ -170,20 +171,92 @@ class FSDPStrategy(FSDPStrategyBase):
 
         cpu_offload = CPUOffload(offload_params=self.cfg.fsdp_config.cpu_offload)
 
+        param_init_fn = None
+        if not self.cfg.fsdp_config.get("disable_param_init", False):
+            param_init_fn = partial(
+                init_fn,
+                dtype=torch_dtype_from_precision(self.cfg.model.precision),
+            )
+
+        ignored_modules = None
+        if self.cfg.fsdp_config.get("ignore_frozen_modules", False):
+            ignored_modules = []
+
+            def collect_frozen_subtrees(module: nn.Module) -> None:
+                for child in module.children():
+                    child_parameters = list(child.parameters())
+                    if child_parameters and all(
+                        not parameter.requires_grad for parameter in child_parameters
+                    ):
+                        ignored_modules.append(child)
+                    else:
+                        collect_frozen_subtrees(child)
+
+            collect_frozen_subtrees(model)
+
+        manual_wrap_module_names = self.cfg.fsdp_config.get(
+            "manual_wrap_module_names", []
+        )
+        if manual_wrap_module_names:
+            configured_dtype = torch_dtype_from_precision(self.cfg.model.precision)
+            if configured_dtype is not None:
+                with torch.no_grad():
+                    for parameter in model.parameters():
+                        if (
+                            parameter.requires_grad
+                            and parameter.is_floating_point()
+                            and parameter.dtype != configured_dtype
+                        ):
+                            parameter.data = parameter.data.to(dtype=configured_dtype)
+            auto_wrap_policy = None
+            for module_name in manual_wrap_module_names:
+                path_parts = module_name.split(".")
+                parent = model
+                for path_part in path_parts[:-1]:
+                    parent = getattr(parent, path_part)
+                child_name = path_parts[-1]
+                child = getattr(parent, child_name)
+                child_module_set = set(child.modules())
+                child_ignored_modules = (
+                    [module for module in ignored_modules if module in child_module_set]
+                    if ignored_modules
+                    else None
+                )
+                wrapped_child = FSDP(
+                    module=child,
+                    param_init_fn=param_init_fn,
+                    auto_wrap_policy=None,
+                    device_id=int(os.environ["LOCAL_RANK"]),
+                    sharding_strategy=sharding_strategy,
+                    mixed_precision=mixed_precision,
+                    sync_module_states=self.cfg.fsdp_config.get(
+                        "sync_module_states", True
+                    ),
+                    device_mesh=device_mesh,
+                    forward_prefetch=self.cfg.fsdp_config.forward_prefetch,
+                    backward_prefetch=backward_prefetch,
+                    limit_all_gathers=self.cfg.fsdp_config.limit_all_gathers,
+                    use_orig_params=self.cfg.fsdp_config.use_orig_params,
+                    cpu_offload=cpu_offload,
+                    ignored_modules=child_ignored_modules,
+                )
+                setattr(parent, child_name, wrapped_child)
+
         fsdp_model = FSDP(
             module=model,
-            param_init_fn=init_fn,
+            param_init_fn=param_init_fn,
             auto_wrap_policy=auto_wrap_policy,
             device_id=int(os.environ["LOCAL_RANK"]),
             sharding_strategy=sharding_strategy,
             mixed_precision=mixed_precision,
-            sync_module_states=True,
+            sync_module_states=self.cfg.fsdp_config.get("sync_module_states", True),
             device_mesh=device_mesh,
             forward_prefetch=self.cfg.fsdp_config.forward_prefetch,
             backward_prefetch=backward_prefetch,
             limit_all_gathers=self.cfg.fsdp_config.limit_all_gathers,
             use_orig_params=self.cfg.fsdp_config.use_orig_params,
             cpu_offload=cpu_offload,
+            ignored_modules=ignored_modules,
         )
         return fsdp_model
 

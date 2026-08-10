@@ -43,6 +43,47 @@ from rlinf.utils.utils import (
     warmup_optimizer_state,
 )
 
+
+def _cast_model_to_configured_dtype(
+    model: nn.Module, dtype: torch.dtype | None
+) -> nn.Module:
+    """Make an explicitly requested model precision apply to every parameter.
+
+    Some custom ``from_pretrained`` implementations create or restore selected
+    parameters in a fixed dtype after Transformers applies ``torch_dtype``.
+    Classic FSDP cannot flatten such a mixed-dtype module when a single root
+    wrapper is used, so normalize the completed model before FSDP wrapping.
+
+    Args:
+        model: Fully loaded model.
+        dtype: Precision requested by ``actor.model.precision``. ``None`` keeps
+            the checkpoint's native parameter dtypes.
+
+    Returns:
+        The input model, with floating-point parameters and buffers converted
+        when ``dtype`` is specified.
+    """
+    if dtype is not None:
+        model.to(dtype=dtype)
+        # Custom model classes may override ``Module._apply`` and leave some
+        # checkpoint parameters untouched. FSDP reads registered parameters
+        # directly, so enforce the configured dtype at that same boundary.
+        with torch.no_grad():
+            for parameter in model.parameters():
+                if parameter.is_floating_point() and parameter.dtype != dtype:
+                    parameter.data = parameter.data.to(dtype=dtype)
+
+        mismatched_parameters = [
+            name
+            for name, parameter in model.named_parameters()
+            if parameter.is_floating_point() and parameter.dtype != dtype
+        ]
+        if mismatched_parameters:
+            preview = ", ".join(mismatched_parameters[:5])
+            raise RuntimeError(f"Failed to cast model parameters to {dtype}: {preview}")
+    return model
+
+
 warnings.filterwarnings(
     "ignore",
     message=".*NO_SHARD.*full_state_dict.*",
@@ -184,6 +225,8 @@ class FSDPModelManager:
                 config=model_config,
                 trust_remote_code=True,
             )
+
+        model = _cast_model_to_configured_dtype(model, self.torch_dtype)
 
         if torch.distributed.is_initialized():
             torch.distributed.barrier()

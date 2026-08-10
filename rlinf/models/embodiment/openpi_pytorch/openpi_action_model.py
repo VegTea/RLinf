@@ -54,3 +54,40 @@ class OpenPiPytorchActionModel(nn.Module):
 
     def gradient_checkpointing_disable(self, **kwargs) -> None:
         self.model.gradient_checkpointing_disable()
+
+    def freeze_vlm(self) -> int:
+        """Freeze SigLIP, Gemma expert 0, and the shared token embedding.
+
+        Pi0's expert index 0 is the PaliGemma VLM and expert index 1 is the
+        action expert.  Keeping the projections/time MLP and expert 1
+        trainable matches OpenPI's ``PaligemmaWithExpert`` freeze filter.
+
+        Returns:
+            Number of parameter tensors changed to ``requires_grad=False``.
+        """
+        frozen = 0
+
+        def freeze(module: nn.Module | None) -> None:
+            nonlocal frozen
+            if module is None:
+                return
+            for parameter in module.parameters():
+                if parameter.requires_grad:
+                    parameter.requires_grad = False
+                    frozen += 1
+
+        freeze(self.model.img)
+        freeze(self.model.llm.embedder)
+        for block in self.model.llm.layers:
+            freeze(block.pre_attention_norms[0])
+            freeze(block.pre_ffw_norms[0])
+            freeze(block.mlps[0])
+            for projections in (
+                block.attn.q_proj,
+                block.attn.k_proj,
+                block.attn.v_proj,
+                block.attn.o_proj,
+            ):
+                freeze(projections[0])
+        freeze(self.model.llm.final_norms[0])
+        return frozen

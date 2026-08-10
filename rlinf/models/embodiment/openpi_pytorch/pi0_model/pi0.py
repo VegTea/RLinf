@@ -466,6 +466,7 @@ class Pi0(model.BaseModel):
             actions: (B, action_horizon, action_dim)
         """
         observation = model.preprocess_observation(observation, train=False)
+        observation = model._observation_to_dtype(observation, self.embed_dtype)
 
         dt = -1.0 / num_steps
         B = observation.state.shape[0]

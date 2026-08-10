@@ -2,6 +2,7 @@ defaults:
   - model/pi0_5@actor.model
   - hybrid_engines/fsdp@actor.fsdp_config
   - override hydra/job_logging: stdout
+  - _self_
 
 hydra:
   run:
@@ -13,7 +14,7 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    actor,env,rollout: 0-0
+    actor: 0-1
 
 runner:
   task_type: sft
@@ -24,32 +25,49 @@ runner:
     logger_backends: ["tensorboard"]
   max_epochs: -1
   max_steps: 10000
-  val_check_interval: -1
+  # Evaluate held-out complete episodes every 1,000 optimizer steps.
+  val_check_interval: 1000
   save_interval: 1000
 
 data:
-  train_data_paths: /inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force
+  train_data_paths: ${oc.env:WIPE_BOARD_DATASET_PATH,/inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force}
+  val_data_paths: ${data.train_data_paths}
+  # Deterministically hold out 20 of the 196 complete trajectories. Frames from
+  # a held-out episode never appear in the training loader.
+  episode_split:
+    test_episode_count: 20
+    seed: 0
+    eval_chunks_per_episode: 10
 
 actor:
   group_name: ActorGroup
   training_backend: fsdp
-  micro_batch_size: 2
-  global_batch_size: 16
+  # The expert-only default was smoke-tested on two RTX 4090 GPUs.
+  micro_batch_size: 1
+  global_batch_size: 8
+  # Four-way training uses 5 samples per rank, matching OpenPI's global eval
+  # batch of 20 for the fixed 200-chunk held-out set.
+  eval_batch_size: 5
   seed: 0
   model:
     # Convert gs://openpi-assets/checkpoints/pi05_droid to OpenPI PyTorch first,
-    # then export PI05_DROID_MODEL_PATH to that local checkpoint directory.
-    model_path: ${oc.env:PI05_DROID_MODEL_PATH}
-    precision: null
+    # then optionally override PI05_DROID_MODEL_PATH for another installation.
+    model_path: ${oc.env:PI05_DROID_MODEL_PATH,/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch}
+    precision: bf16
     num_action_chunks: 15
     action_dim: 8
+    # Match the deployment-style flow decoding used by the JAX evaluator.
+    num_steps: 10
     add_value_head: false
     openpi:
       config_name: pi05_droid
       num_images_in_input: 2
       action_chunk: ${actor.model.num_action_chunks}
       num_steps: ${actor.model.num_steps}
-      train_expert_only: false
+      # Freeze the vision-language backbone and train the action expert. RLinf
+      # currently does not inject OpenPI LoRA adapters; set this to false only
+      # for full-parameter SFT on hardware with enough aggregate memory.
+      train_expert_only: true
       action_env_dim: ${actor.model.action_dim}
       noise_method: flow_sde
       add_value_head: ${actor.model.add_value_head}
@@ -58,7 +76,7 @@ actor:
     # It normalizes the velocity actions that the official pi05_droid expects.
     openpi_data:
       control_frequency_hz: 15.0
-      norm_stats_path: ${oc.env:PI05_DROID_NORM_STATS}
+      norm_stats_path: ${oc.env:PI05_DROID_NORM_STATS,/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch/assets/wipe_board_v1_zed196_force}
   optim:
     lr: 2.5e-5
     adam_beta1: 0.9
@@ -68,15 +86,27 @@ actor:
     clip_grad: 1.0
     total_training_steps: ${runner.max_steps}
     lr_warmup_steps: 500
-    lr_scheduler: cosine
+    lr_scheduler: openpi_cosine
     num_cycles: 0.5
     min_lr: 2.5e-6
   fsdp_config:
     strategy: fsdp
     sharding_strategy: full_shard
-    use_orig_params: false
+    # OpenPI manually executes Gemma layer components. Wrap the composite
+    # module whose forward is actually invoked and keep the frozen VLM
+    # replicated instead of flattening it together with the action expert.
+    use_orig_params: true
     gradient_checkpointing: false
+    disable_param_init: true
+    sync_module_states: false
+    ignore_frozen_modules: true
+    manual_wrap_module_names: [paligemma_with_expert]
     mixed_precision:
-      param_dtype: ${actor.model.precision}
-      reduce_dtype: ${actor.model.precision}
-      buffer_dtype: ${actor.model.precision}
+      # FSDP input casting would convert images before OpenPI's FP32
+      # augmentation. CUDA autocast below handles model operators instead.
+      param_dtype: null
+      reduce_dtype: null
+      buffer_dtype: null
+    amp_autocast:
+      enabled: true
+      precision: bf16

@@ -116,6 +116,7 @@ def get_model(cfg: Any, torch_dtype: Any = None) -> Any:
 
     if task == "sft":
         return _build_sft_model(
+            model_cfg,
             model,
             num_steps=num_steps,
             action_env_dim=action_env_dim,

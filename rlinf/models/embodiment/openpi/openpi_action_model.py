@@ -354,6 +354,8 @@ class OpenPi0ForRLActionPrediction(PI0Pytorch, BasePolicy):
     def forward(self, forward_type=ForwardType.DEFAULT, **kwargs):
         if forward_type == ForwardType.SFT:
             return self.sft_forward(**kwargs)
+        elif forward_type == ForwardType.ACTION_SAMPLE:
+            return self.action_sample_forward(**kwargs)
         elif forward_type == ForwardType.DEFAULT:
             return self.default_forward(**kwargs)
         elif forward_type == ForwardType.NFT:
@@ -364,6 +366,31 @@ class OpenPi0ForRLActionPrediction(PI0Pytorch, BasePolicy):
             return self.sac_q_forward(**kwargs)
         else:
             raise NotImplementedError
+
+    def action_sample_forward(self, data, noise: torch.Tensor) -> torch.Tensor:
+        """Decode normalized actions for SFT evaluation through the FSDP wrapper."""
+        if isinstance(data, tuple):
+            observation, _ = data
+        else:
+            observation = data["observation"]
+
+        device = next(self.parameters()).device
+        register_pytree_dataclasses(observation)
+        observation = tree_map(
+            lambda value: (
+                torch.as_tensor(value, device=device).contiguous()
+                if value is not None
+                else value
+            ),
+            observation,
+        )
+        outputs = self.sample_actions(
+            observation,
+            noise=noise.to(device=device),
+            mode="eval",
+            compute_values=False,
+        )
+        return outputs["actions"]
 
     def sft_forward(self, data, use_action_chunk_loss: bool = False, **kwargs):
         if hasattr(self, "gradient_checkpointing_disable"):

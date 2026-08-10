@@ -33,6 +33,10 @@ DEFAULT_DATASET_PATH = (
 )
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[2] / "outputs" / "extract_videos"
 _MODEL_IMAGE_KEYS = ("base_0_rgb", "left_wrist_0_rgb", "right_wrist_0_rgb")
+_EXTERIOR_CAMERA_KEYS = {
+    "left": "exterior_image_1_left",
+    "right": "exterior_image_2_left",
+}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -65,6 +69,15 @@ def _build_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help="Output frame rate. Defaults to the dataset FPS.",
+    )
+    parser.add_argument(
+        "--external-camera",
+        choices=tuple(_EXTERIOR_CAMERA_KEYS),
+        default="right",
+        help=(
+            "Exterior view mapped to base_0_rgb (default: right). "
+            "left uses exterior_image_1_left; right uses exterior_image_2_left."
+        ),
     )
     parser.add_argument(
         "--overwrite",
@@ -100,11 +113,13 @@ def _tensor_to_hwc_uint8(image: Any) -> np.ndarray:
     return image
 
 
-def _get_pi05_droid_images(sample: dict[str, Any]) -> dict[str, np.ndarray]:
-    """Apply the official DROID camera mapping and 224-square resize-with-pad."""
+def _get_pi05_droid_images(
+    sample: dict[str, Any], exterior_camera_key: str
+) -> dict[str, np.ndarray]:
+    """Map the selected exterior view and apply 224-square resize-with-pad."""
     from openpi_client.image_tools import resize_with_pad
 
-    base = _tensor_to_hwc_uint8(sample["exterior_image_1_left"])
+    base = _tensor_to_hwc_uint8(sample[exterior_camera_key])
     wrist = _tensor_to_hwc_uint8(sample["wrist_image_left"])
     if base.shape != wrist.shape:
         raise ValueError(
@@ -120,7 +135,11 @@ def _get_pi05_droid_images(sample: dict[str, Any]) -> dict[str, np.ndarray]:
 
 
 def _write_episode_video(
-    dataset: Any, output_path: Path, fps: float, imageio_ffmpeg: Any
+    dataset: Any,
+    output_path: Path,
+    fps: float,
+    exterior_camera_key: str,
+    imageio_ffmpeg: Any,
 ) -> None:
     """Write a VS Code-compatible H.264, three-panel pi05_droid input video."""
     frame_size = (224 * len(_MODEL_IMAGE_KEYS), 224)
@@ -138,7 +157,7 @@ def _write_episode_video(
 
     try:
         for frame_index in range(len(dataset)):
-            images = _get_pi05_droid_images(dataset[frame_index])
+            images = _get_pi05_droid_images(dataset[frame_index], exterior_camera_key)
             frame = np.ascontiguousarray(
                 np.concatenate([images[key] for key in _MODEL_IMAGE_KEYS], axis=1)
             )
@@ -184,10 +203,17 @@ def main() -> None:
             f"{output_path} already exists. Pass --overwrite to replace it."
         )
 
-    _write_episode_video(dataset, output_path, fps, _require_imageio_ffmpeg())
+    exterior_camera_key = _EXTERIOR_CAMERA_KEYS[args.external_camera]
+    _write_episode_video(
+        dataset,
+        output_path,
+        fps,
+        exterior_camera_key,
+        _require_imageio_ffmpeg(),
+    )
     print(f"Wrote {len(dataset)} frames at {fps:g} FPS to {output_path}")
     print(
-        "Panel order: base_0_rgb (exterior_image_1_left), "
+        f"Panel order: base_0_rgb ({exterior_camera_key}), "
         "left_wrist_0_rgb (wrist_image_left), right_wrist_0_rgb (masked zeros)."
     )
 

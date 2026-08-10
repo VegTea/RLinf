@@ -68,10 +68,19 @@ def create_device_mesh(world_size):
     )
 
 
-def init_fn(x: torch.nn.Module):
+def init_fn(x: torch.nn.Module, dtype: torch.dtype | None = None):
+    """Materialize a module on nonzero ranks and preserve configured precision."""
     if not torch.distributed.get_rank() == 0:
         x = x.to_empty(device=Worker.torch_platform.current_device(), recurse=False)
         Worker.torch_platform.empty_cache()
+    if dtype is not None:
+        with torch.no_grad():
+            for parameter in x.parameters(recurse=False):
+                if parameter.is_floating_point() and parameter.dtype != dtype:
+                    parameter.data = parameter.data.to(dtype=dtype)
+            for name, buffer in x.named_buffers(recurse=False):
+                if buffer.is_floating_point() and buffer.dtype != dtype:
+                    x._buffers[name] = buffer.to(dtype=dtype)
     return x
 
 
