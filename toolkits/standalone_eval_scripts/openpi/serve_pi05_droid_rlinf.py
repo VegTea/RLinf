@@ -48,6 +48,12 @@ from rlinf.models.embodiment.openpi.policies.droid_deployment_policy import (
 from rlinf.models.embodiment.openpi_pytorch.pi0_model.pi0_config import Pi0Config
 
 
+_EXTERIOR_CAMERA_KEY = {
+    "left": "observation/exterior_image_1_left",
+    "right": "observation/exterior_image_2_left",
+}
+
+
 def _create_rlinf_pi05_droid_policy(
     checkpoint_dir: pathlib.Path,
     norm_stats_dir: pathlib.Path,
@@ -55,6 +61,7 @@ def _create_rlinf_pi05_droid_policy(
     control_frequency_hz: float,
     pytorch_device: str,
     default_prompt: str | None,
+    exterior_camera: str = "right",
 ) -> DroidAbsoluteJointPositionPolicy:
     """Load an RLinf openpi_pytorch checkpoint and build a serving policy."""
     checkpoint_dir = checkpoint_dir.expanduser().resolve()
@@ -68,6 +75,12 @@ def _create_rlinf_pi05_droid_policy(
         raise FileNotFoundError(
             f"norm_stats.json not found: {norm_stats_dir / 'norm_stats.json'}"
         )
+    if exterior_camera not in _EXTERIOR_CAMERA_KEY:
+        raise ValueError(
+            f"exterior_camera must be one of {list(_EXTERIOR_CAMERA_KEY)}, "
+            f"got {exterior_camera!r}."
+        )
+    image_key = _EXTERIOR_CAMERA_KEY[exterior_camera]
 
     # ── 1. build transforms pipeline via the upstream openpi config ──
     train_config = get_openpi_config(
@@ -75,7 +88,7 @@ def _create_rlinf_pi05_droid_policy(
         model_path=str(checkpoint_dir),
         data_kwargs={
             "control_frequency_hz": control_frequency_hz,
-            "exterior_image_key": "observation/exterior_image_2_left",
+            "exterior_image_key": image_key,
             "norm_stats_path": str(norm_stats_dir),
         },
     )
@@ -146,7 +159,7 @@ def _create_rlinf_pi05_droid_policy(
     return DroidAbsoluteJointPositionPolicy(
         policy,
         control_frequency_hz=control_frequency_hz,
-    )
+    ), image_key
 
 
 def main(
@@ -158,16 +171,24 @@ def main(
     pytorch_device: str = "cuda",
     default_prompt: str | None = None,
     dry_run: bool = False,
+    exterior_camera: str = "right",
 ) -> None:
-    """Start the OpenPI WebSocket server for an RLinf pi05_droid checkpoint."""
+    """Start the OpenPI WebSocket server for an RLinf pi05_droid checkpoint.
+
+    Args:
+        exterior_camera: Which DROID exterior camera to use as the main view.
+            ``"left"`` maps to ``observation/exterior_image_1_left``;
+            ``"right"`` maps to ``observation/exterior_image_2_left``.
+    """
     logging.basicConfig(level=logging.INFO)
 
-    policy = _create_rlinf_pi05_droid_policy(
+    policy, image_key = _create_rlinf_pi05_droid_policy(
         checkpoint_dir,
         norm_stats_dir,
         control_frequency_hz=control_frequency_hz,
         pytorch_device=pytorch_device,
         default_prompt=default_prompt,
+        exterior_camera=exterior_camera,
     )
 
     metadata = {
@@ -175,7 +196,7 @@ def main(
         "native_model_action_space": "joint_velocity",
         "action_horizon": 15,
         "control_frequency_hz": control_frequency_hz,
-        "exterior_image_key": "observation/exterior_image_2_left",
+        "exterior_image_key": image_key,
         "wrist_image_key": "observation/wrist_image_left",
     }
     if dry_run:
