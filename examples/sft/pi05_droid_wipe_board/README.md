@@ -218,8 +218,16 @@ OUTPUT_CHECKPOINT_DIR=outputs/pi05_droid_wipe_board_sft/exported/step_10000 \
 bash examples/sft/pi05_droid_wipe_board/export_sft_checkpoint.sh
 ```
 
-The wipe-board normalization statistics remain separate and are selected by
-`NORM_STATS_DIR` when the server starts.
+For `openpi_pytorch` SFT checkpoints the exporter validates against the local
+RLinf-layout `pytorch_rlinf` checkpoint, removes the SFT wrapper prefixes, and
+writes BF16 bare-Pi0 weights. Override `REFERENCE_CHECKPOINT_DIR` only with a
+checkpoint that has the same RLinf key layout.
+
+The exporter bundles the wipe-board normalization statistics under
+`assets/wipe_board_v1_zed196_force/norm_stats.json`. The RLinf server launcher
+prefers this bundled copy, so an exported directory is self-contained. For an
+older export without bundled stats, set `NORM_STATS_DIR` explicitly or let the
+launcher fall back to the local `pytorch_rlinf` asset directory.
 
 ## 3. Start the WebSocket server
 
@@ -241,6 +249,28 @@ bash examples/sft/pi05_droid_wipe_board/run_server.sh
 `CHECKPOINT_DIR` must contain `model.safetensors`; use the export step above for
 an RLinf training checkpoint.
 
+RLinf `openpi_pytorch` exports use a different key layout from the official
+OpenPI PyTorch model. Start those exports with the dedicated launcher and select
+the exterior view used during SFT:
+
+```bash
+CHECKPOINT_DIR=/path/to/exported/rlinf_checkpoint \
+EXTERIOR_CAMERA=right \
+SERVER_PORT=8080 \
+bash examples/sft/pi05_droid_wipe_board/run_rlinf_server.sh
+
+CHECKPOINT_DIR=/path/to/exported/rlinf_checkpoint \
+EXTERIOR_CAMERA=left \
+SERVER_PORT=8081 \
+bash examples/sft/pi05_droid_wipe_board/run_rlinf_server.sh
+```
+
+The client sends only the selected exterior image and
+`observation/wrist_image_left`; the policy creates the masked-zero third image
+slot internally. The RLinf launcher loads BF16 weights, disables autograd for
+the ten-step flow decode, and returns 15 absolute joint-position targets at
+15 Hz.
+
 By default `TORCH_COMPILE_DISABLE=1`, avoiding a long first-request compilation
 on a 4090. Set it to `0` only when the service can be warmed up before use.
 
@@ -261,6 +291,10 @@ settings with environment variables:
 SERVER_URL=ws://GPU_HOST:8080 EPISODE_INDEX=3 NUM_SAMPLES=20 \
 bash examples/sft/pi05_droid_wipe_board/run_eval.sh
 ```
+
+`run_eval.sh` defaults to `EXTERIOR_CAMERA=auto` and reads the required camera
+from the WebSocket metadata. Set `EXTERIOR_CAMERA=left` or `right` to require a
+specific view; a mismatch with the server is rejected before inference.
 
 Results are saved under `outputs/pi05_droid_eval/` as JSON summaries and NPZ
 arrays.

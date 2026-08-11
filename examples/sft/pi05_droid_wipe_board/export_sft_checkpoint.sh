@@ -11,11 +11,14 @@ if [[ -z "${SFT_CHECKPOINT:-}" ]]; then
 fi
 
 OUTPUT_CHECKPOINT_DIR="${OUTPUT_CHECKPOINT_DIR:-${REPO_ROOT}/outputs/pi05_droid_wipe_board_sft/exported}"
+REFERENCE_CHECKPOINT_DIR="${REFERENCE_CHECKPOINT_DIR:-${PI05_DROID_RLINF_MODEL_PATH:-/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch_rlinf}}"
+EXPORT_NORM_STATS_DIR="${EXPORT_NORM_STATS_DIR:-${PI05_DROID_RLINF_NORM_STATS:-${REFERENCE_CHECKPOINT_DIR}/assets/wipe_board_v1_zed196_force}}"
 
 cd "${REPO_ROOT}"
 exec "${PYTHON_BIN}" -u \
   toolkits/standalone_eval_scripts/openpi/export_pi05_droid_sft_checkpoint.py \
   --checkpoint "${SFT_CHECKPOINT}" \
-  --reference-checkpoint "${BASE_CHECKPOINT_DIR}" \
+  --reference-checkpoint "${REFERENCE_CHECKPOINT_DIR}" \
   --output-dir "${OUTPUT_CHECKPOINT_DIR}" \
+  --norm-stats-dir "${EXPORT_NORM_STATS_DIR}" \
   "$@"

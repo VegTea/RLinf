@@ -32,6 +32,10 @@ DEFAULT_DATASET_PATH = Path(
     "/inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force"
 )
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[3] / "outputs" / "pi05_droid_eval"
+EXTERIOR_CAMERA_KEYS = {
+    "left": "observation/exterior_image_1_left",
+    "right": "observation/exterior_image_2_left",
+}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -56,6 +60,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--num-samples", type=int, default=10)
     parser.add_argument("--action-horizon", type=int, default=15)
     parser.add_argument("--control-frequency-hz", type=float, default=15.0)
+    parser.add_argument(
+        "--exterior-camera",
+        choices=("auto", "left", "right"),
+        default="auto",
+        help="Exterior view to send. 'auto' uses the server metadata (default: auto).",
+    )
     parser.add_argument(
         "--prompt",
         default=None,
@@ -95,8 +105,8 @@ def absolute_chunk_to_droid_actions(
             f"Expected absolute_actions with shape (horizon, >=8), got "
             f"{absolute_actions.shape}."
         )
-    if control_frequency_hz <= 0:
-        raise ValueError("control_frequency_hz must be positive.")
+    if not np.isfinite(control_frequency_hz) or control_frequency_hz <= 0:
+        raise ValueError("control_frequency_hz must be finite and positive.")
 
     result = absolute_actions[:, :8].copy()
     previous_joint_positions = np.concatenate(
@@ -269,10 +279,38 @@ def _load_episode(dataset_path: Path, episode_index: int) -> Any:
     )
 
 
-def _make_observation(sample: dict[str, Any], prompt: str | None) -> dict[str, Any]:
+def resolve_exterior_camera(
+    requested: str, metadata: dict[str, Any]
+) -> tuple[str, str]:
+    """Resolve and validate the client exterior view against server metadata."""
+    metadata_key = metadata.get("exterior_image_key")
+    if requested == "auto":
+        matches = [
+            name for name, key in EXTERIOR_CAMERA_KEYS.items() if key == metadata_key
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                "Cannot infer exterior camera from server metadata: "
+                f"exterior_image_key={metadata_key!r}."
+            )
+        requested = matches[0]
+    image_key = EXTERIOR_CAMERA_KEYS[requested]
+    if metadata_key is not None and metadata_key != image_key:
+        raise ValueError(
+            f"Requested {requested!r} exterior camera ({image_key}) but server "
+            f"expects {metadata_key}."
+        )
+    return requested, image_key
+
+
+def _make_observation(
+    sample: dict[str, Any], prompt: str | None, exterior_camera: str
+) -> dict[str, Any]:
     joint_position = _to_numpy(sample["joint_position"]).astype(np.float32)
+    image_key = EXTERIOR_CAMERA_KEYS[exterior_camera]
+    dataset_image_key = image_key.removeprefix("observation/")
     return {
-        "observation/exterior_image_2_left": _to_numpy(sample["exterior_image_2_left"]),
+        image_key: _to_numpy(sample[dataset_image_key]),
         "observation/wrist_image_left": _to_numpy(sample["wrist_image_left"]),
         "observation/joint_position": joint_position,
         "observation/gripper_position": _to_numpy(sample["gripper_position"]).astype(
@@ -286,8 +324,8 @@ def main() -> None:
     args = _build_parser().parse_args()
     if args.timeout_seconds <= 0:
         raise ValueError("--timeout-seconds must be positive.")
-    if args.control_frequency_hz <= 0:
-        raise ValueError("--control-frequency-hz must be positive.")
+    if not np.isfinite(args.control_frequency_hz) or args.control_frequency_hz <= 0:
+        raise ValueError("--control-frequency-hz must be finite and positive.")
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     dataset = _load_episode(args.dataset_path, args.episode_index)
@@ -310,6 +348,14 @@ def main() -> None:
     logging.info("Connecting to %s", args.server_url)
     client = _TimedWebsocketPolicyClient(args.server_url, args.timeout_seconds)
     logging.info("Server metadata: %s", client.metadata)
+    try:
+        exterior_camera, exterior_image_key = resolve_exterior_camera(
+            args.exterior_camera, client.metadata
+        )
+    except Exception:
+        client.close()
+        raise
+    logging.info("Using %s exterior camera (%s)", exterior_camera, exterior_image_key)
 
     predicted_chunks = []
     expert_chunks = []
@@ -319,7 +365,7 @@ def main() -> None:
     try:
         for sample_number, local_index in enumerate(sample_indices, start=1):
             sample = dataset[int(local_index)]
-            observation = _make_observation(sample, args.prompt)
+            observation = _make_observation(sample, args.prompt, exterior_camera)
             start_time = time.monotonic()
             result = client.infer(observation)
             latency_ms = (time.monotonic() - start_time) * 1000
@@ -394,7 +440,9 @@ def main() -> None:
         print(f"  {key}: {value:.8f}")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"episode_{args.episode_index:06d}_{args.num_samples}_chunks"
+    stem = (
+        f"{exterior_camera}_episode_{args.episode_index:06d}_{args.num_samples}_chunks"
+    )
     summary_path = args.output_dir / f"{stem}.json"
     chunks_path = args.output_dir / f"{stem}.npz"
     summary = {
@@ -405,6 +453,8 @@ def main() -> None:
         "num_samples": args.num_samples,
         "action_horizon": args.action_horizon,
         "control_frequency_hz": args.control_frequency_hz,
+        "exterior_camera": exterior_camera,
+        "exterior_image_key": exterior_image_key,
         "rows": rows,
         "aggregate": aggregate,
     }

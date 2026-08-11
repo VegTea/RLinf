@@ -15,6 +15,7 @@
 """Tests for the pi0.5-DROID LeRobot input mapping."""
 
 import numpy as np
+import pytest
 from openpi_client import base_policy
 
 from rlinf.models.embodiment.openpi.dataconfig.droid_dataconfig import (
@@ -182,3 +183,12 @@ def test_deployment_policy_returns_absolute_joint_chunk_and_metadata():
 
     policy.reset()
     assert inner_policy.reset_called
+
+
+@pytest.mark.parametrize("frequency", [0.0, -1.0, np.nan, np.inf])
+def test_deployment_policy_rejects_invalid_frequency(frequency):
+    with pytest.raises(ValueError, match="finite and positive"):
+        DroidAbsoluteJointPositionPolicy(
+            _FakeVelocityPolicy(np.zeros((2, 8), dtype=np.float32)),
+            control_frequency_hz=frequency,
+        )

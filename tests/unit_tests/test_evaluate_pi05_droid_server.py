@@ -36,6 +36,7 @@ _SPEC.loader.exec_module(_MODULE)
 absolute_chunk_to_droid_actions = _MODULE.absolute_chunk_to_droid_actions
 compute_chunk_metrics = _MODULE.compute_chunk_metrics
 select_uniform_chunk_starts = _MODULE.select_uniform_chunk_starts
+resolve_exterior_camera = _MODULE.resolve_exterior_camera
 
 
 def test_select_uniform_chunk_starts_avoids_end_padding():
@@ -81,3 +82,21 @@ def test_compute_chunk_metrics_reports_zero_for_exact_match():
     assert all(
         value == 0.0 for chunk in metrics["per_chunk"] for value in chunk.values()
     )
+
+
+def test_resolve_exterior_camera_uses_server_metadata():
+    camera, image_key = resolve_exterior_camera(
+        "auto", {"exterior_image_key": "observation/exterior_image_1_left"}
+    )
+
+    assert camera == "left"
+    assert image_key == "observation/exterior_image_1_left"
+
+
+def test_resolve_exterior_camera_rejects_mismatch():
+    import pytest
+
+    with pytest.raises(ValueError, match="server expects"):
+        resolve_exterior_camera(
+            "right", {"exterior_image_key": "observation/exterior_image_1_left"}
+        )

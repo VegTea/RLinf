@@ -57,9 +57,10 @@ def joint_velocity_chunk_to_absolute_positions(
         raise ValueError(
             f"Expected actions with shape (horizon, >=8), got {action_chunk.shape}."
         )
-    if control_frequency_hz <= 0:
+    if not np.isfinite(control_frequency_hz) or control_frequency_hz <= 0:
         raise ValueError(
-            f"control_frequency_hz must be positive, got {control_frequency_hz}."
+            "control_frequency_hz must be finite and positive, got "
+            f"{control_frequency_hz}."
         )
     if not np.all(np.isfinite(joint_position)) or not np.all(
         np.isfinite(action_chunk[:, :8])
@@ -72,6 +73,8 @@ def joint_velocity_chunk_to_absolute_positions(
     absolute_actions[:, :7] = joint_position + np.cumsum(
         joint_velocity / control_frequency_hz, axis=0
     )
+    if not np.all(np.isfinite(absolute_actions)):
+        raise ValueError("Integrated absolute actions must contain finite values.")
     return absolute_actions
 
 
@@ -90,6 +93,11 @@ class DroidAbsoluteJointPositionPolicy(base_policy.BasePolicy):
         control_frequency_hz: float,
         joint_position_key: str = "observation/joint_position",
     ) -> None:
+        if not np.isfinite(control_frequency_hz) or control_frequency_hz <= 0:
+            raise ValueError(
+                "control_frequency_hz must be finite and positive, got "
+                f"{control_frequency_hz}."
+            )
         self._policy = policy
         self._control_frequency_hz = control_frequency_hz
         self._joint_position_key = joint_position_key

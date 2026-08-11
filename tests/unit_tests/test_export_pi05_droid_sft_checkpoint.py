@@ -31,31 +31,37 @@ assert _SPEC.loader is not None
 _SPEC.loader.exec_module(_MODULE)
 
 
-def test_export_checkpoint_strips_fsdp_prefix_and_matches_reference(tmp_path):
+def test_export_checkpoint_strips_wrapper_prefixes_and_matches_reference(tmp_path):
     checkpoint = tmp_path / "global_step_10"
     weights_dir = checkpoint / "actor/model_state_dict"
     weights_dir.mkdir(parents=True)
     trained = torch.arange(6, dtype=torch.float32).reshape(2, 3)
     torch.save(
-        {"_fsdp_wrapped_module.paligemma.weight": trained},
+        {"_fsdp_wrapped_module.model.paligemma.weight": trained},
         weights_dir / "full_weights.pt",
     )
 
     reference = tmp_path / "reference"
     reference.mkdir()
     safetensors.torch.save_file(
-        {"paligemma.weight": torch.zeros(2, 3, dtype=torch.bfloat16)},
+        {"paligemma.weight": torch.zeros(2, 3, dtype=torch.float32)},
         reference / "model.safetensors",
     )
     (reference / "config.json").write_text('{"pi05": true}\n')
+    norm_stats = tmp_path / "wipe_board"
+    norm_stats.mkdir()
+    (norm_stats / "norm_stats.json").write_text('{"norm_stats": {}}\n')
 
     output = tmp_path / "exported"
-    output_path = _MODULE.export_checkpoint(checkpoint, reference, output)
+    output_path = _MODULE.export_checkpoint(checkpoint, reference, output, norm_stats)
     exported = safetensors.torch.load_file(str(output_path))
 
     assert exported["paligemma.weight"].dtype == torch.bfloat16
     torch.testing.assert_close(exported["paligemma.weight"].float(), trained)
     assert (output / "config.json").read_text() == '{"pi05": true}\n'
+    assert (output / "assets/wipe_board/norm_stats.json").read_text() == (
+        '{"norm_stats": {}}\n'
+    )
 
 
 def test_resolve_full_weights_accepts_actor_directory(tmp_path):

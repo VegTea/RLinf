@@ -27,7 +27,12 @@ _WEIGHT_CANDIDATES = (
     "model_state_dict/full_weights.pt",
     "full_weights.pt",
 )
-_WRAPPER_PREFIXES = ("_fsdp_wrapped_module.", "_orig_mod.", "module.")
+_WRAPPER_PREFIXES = (
+    "_fsdp_wrapped_module.",
+    "_orig_mod.",
+    "module.",
+    "model.",
+)
 _TIED_WEIGHT_ALIASES = {
     "paligemma_with_expert.paligemma.model.language_model.embed_tokens.weight": "paligemma_with_expert.paligemma.lm_head.weight",
 }
@@ -92,6 +97,7 @@ def export_checkpoint(
     checkpoint: pathlib.Path,
     reference_checkpoint: pathlib.Path,
     output_dir: pathlib.Path,
+    norm_stats_dir: pathlib.Path | None = None,
 ) -> pathlib.Path:
     """Validate and export RLinf weights as OpenPI ``model.safetensors``."""
     import safetensors.torch
@@ -128,7 +134,8 @@ def export_checkpoint(
                 f"Shape mismatch for {key}: trained={tuple(tensor.shape)}, "
                 f"reference={tuple(reference_tensor.shape)}."
             )
-        exported[key] = tensor.detach().cpu().to(reference_tensor.dtype).contiguous()
+        target_dtype = torch.bfloat16 if tensor.is_floating_point() else tensor.dtype
+        exported[key] = tensor.detach().cpu().to(target_dtype).contiguous()
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "model.safetensors"
@@ -136,6 +143,13 @@ def export_checkpoint(
     config_path = reference_checkpoint / "config.json"
     if config_path.is_file():
         shutil.copy2(config_path, output_dir / "config.json")
+    if norm_stats_dir is not None:
+        norm_stats_path = norm_stats_dir / "norm_stats.json"
+        if not norm_stats_path.is_file():
+            raise FileNotFoundError(f"Norm stats not found: {norm_stats_path}")
+        bundled_stats_dir = output_dir / "assets" / norm_stats_dir.name
+        bundled_stats_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(norm_stats_path, bundled_stats_dir / "norm_stats.json")
     print(f"Exported {len(exported)} tensors from {weights_path} to {output_path}")
     return output_path
 
@@ -155,8 +169,19 @@ def main() -> None:
         help="Original pi05_droid PyTorch directory used to validate keys/shapes.",
     )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--norm-stats-dir",
+        type=pathlib.Path,
+        default=None,
+        help="Optional norm-stats directory to bundle under output-dir/assets/.",
+    )
     args = parser.parse_args()
-    export_checkpoint(args.checkpoint, args.reference_checkpoint, args.output_dir)
+    export_checkpoint(
+        args.checkpoint,
+        args.reference_checkpoint,
+        args.output_dir,
+        args.norm_stats_dir,
+    )
 
 
 if __name__ == "__main__":

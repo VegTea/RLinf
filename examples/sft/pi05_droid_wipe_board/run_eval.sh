@@ -9,6 +9,7 @@ SERVER_URL="${SERVER_URL:-ws://127.0.0.1:8080}"
 WAIT_SECONDS="${WAIT_SECONDS:-900}"
 EPISODE_INDEX="${EPISODE_INDEX:-0}"
 NUM_SAMPLES="${NUM_SAMPLES:-10}"
+EXTERIOR_CAMERA="${EXTERIOR_CAMERA:-auto}"
 OUTPUT_DIR="${EVAL_OUTPUT_DIR:-${REPO_ROOT}/outputs/pi05_droid_eval}"
 
 deadline=$((SECONDS + WAIT_SECONDS))
@@ -42,6 +43,7 @@ exec "${PYTHON_BIN}" -u \
   --dataset-path "${DATASET_PATH}" \
   --episode-index "${EPISODE_INDEX}" \
   --num-samples "${NUM_SAMPLES}" \
+  --exterior-camera "${EXTERIOR_CAMERA}" \
   --action-horizon 15 \
   --control-frequency-hz 15 \
   --timeout-seconds 120 \
