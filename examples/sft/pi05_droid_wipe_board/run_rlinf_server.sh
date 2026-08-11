@@ -3,12 +3,17 @@
 # Start an RLinf openpi_pytorch pi0.5-DROID WebSocket policy server.
 
 set -euo pipefail
+# Preserve an explicit caller override before common.sh supplies its legacy
+# official-checkpoint default.
+CALLER_NORM_STATS_DIR="${NORM_STATS_DIR:-}"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 RLINF_BASE_CHECKPOINT_DIR="${PI05_DROID_RLINF_MODEL_PATH:-/inspire/hdd/global_user/czxs24230043/pretrained_models/PI/pi05_droid/pytorch_rlinf}"
 CHECKPOINT_DIR="${CHECKPOINT_DIR:-${RLINF_BASE_CHECKPOINT_DIR}}"
 BUNDLED_NORM_STATS_DIR="${CHECKPOINT_DIR}/assets/wipe_board_v1_zed196_force"
-if [[ -z "${NORM_STATS_DIR:-}" ]]; then
+if [[ -n "${CALLER_NORM_STATS_DIR}" ]]; then
+  NORM_STATS_DIR="${CALLER_NORM_STATS_DIR}"
+else
   if [[ -f "${BUNDLED_NORM_STATS_DIR}/norm_stats.json" ]]; then
     NORM_STATS_DIR="${BUNDLED_NORM_STATS_DIR}"
   else
