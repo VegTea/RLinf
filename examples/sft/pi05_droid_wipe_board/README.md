@@ -231,6 +231,10 @@ launcher fall back to the local `pytorch_rlinf` asset directory.
 
 ## 3. Start the WebSocket server
 
+For a standalone Chinese deployment guide covering tokenizer setup, DROID Infra,
+absolute joint-position semantics, action execution, and observation recording,
+see [DEPLOYMENT.zh-CN.md](DEPLOYMENT.zh-CN.md).
+
 The default command serves the original converted checkpoint on port 8080:
 
 ```bash
