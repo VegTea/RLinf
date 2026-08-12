@@ -274,6 +274,35 @@ the ten-step flow decode, and returns 15 absolute joint-position targets at
 By default `TORCH_COMPILE_DISABLE=1`, avoiding a long first-request compilation
 on a 4090. Set it to `0` only when the service can be warmed up before use.
 
+To debug the observations received during a real-robot rollout, enable the
+server-side recorder:
+
+```bash
+OBSERVATION_RECORD_DIR="$PWD/outputs/pi05_droid_observation_debug" \
+CHECKPOINT_DIR=/path/to/exported/rlinf_checkpoint \
+EXTERIOR_CAMERA=right \
+SERVER_PORT=8080 \
+bash examples/sft/pi05_droid_wipe_board/run_rlinf_server.sh
+```
+
+Each server start creates a timestamped `session_*` directory. Every inference
+request produces one line in `observations.jsonl`, including UTC, Unix, and
+monotonic timestamps, all non-image observation values, and the corresponding
+video frame index. Images are written as VS Code-compatible H.264 files:
+
+- `exterior.mp4`: the selected raw exterior-camera stream.
+- `wrist.mp4`: the raw wrist-camera stream.
+- `model_inputs_224.mp4`: `[exterior, wrist, masked zero]` after OpenPI's
+  224-by-224 resize-with-padding transform.
+
+Stop the server with `Ctrl+C` so the MP4 files are finalized. The videos use
+`OBSERVATION_RECORD_FPS=15` by default; override it only when the request rate
+is different. Recording happens synchronously before inference and is intended
+for debugging rather than maximum-throughput deployment. The server can only
+record observations sent for policy inference: with DROID Infra
+`exec_horizon=1`, this is every control step; with a larger execute horizon,
+the intermediate open-loop control steps are not sent to the policy server.
+
 ## 4. Evaluate
 
 In a second terminal, run:

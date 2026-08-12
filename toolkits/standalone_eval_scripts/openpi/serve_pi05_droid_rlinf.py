@@ -46,6 +46,9 @@ from rlinf.models.embodiment.openpi.dataconfig import get_openpi_config
 from rlinf.models.embodiment.openpi.policies.droid_deployment_policy import (
     DroidAbsoluteJointPositionPolicy,
 )
+from rlinf.models.embodiment.openpi.policies.observation_recording_policy import (
+    DroidObservationRecordingPolicy,
+)
 from rlinf.models.embodiment.openpi_pytorch.pi0_model import model as _rlinf_model
 from rlinf.models.embodiment.openpi_pytorch.pi0_model.pi0_config import Pi0Config
 
@@ -236,6 +239,8 @@ def main(
     default_prompt: str | None = None,
     dry_run: bool = False,
     exterior_camera: str = "right",
+    observation_record_dir: pathlib.Path | None = None,
+    observation_record_fps: float = 15.0,
 ) -> None:
     """Start the OpenPI WebSocket server for an RLinf pi05_droid checkpoint.
 
@@ -243,6 +248,9 @@ def main(
         exterior_camera: Which DROID exterior camera to use as the main view.
             ``"left"`` maps to ``observation/exterior_image_1_left``;
             ``"right"`` maps to ``observation/exterior_image_2_left``.
+        observation_record_dir: Optional root under which raw observations and
+            H.264 input videos are recorded in a timestamped session directory.
+        observation_record_fps: Frame rate written into observation videos.
     """
     logging.basicConfig(level=logging.INFO)
 
@@ -263,6 +271,16 @@ def main(
         "exterior_image_key": image_key,
         "wrist_image_key": "observation/wrist_image_left",
     }
+    recorder = None
+    if observation_record_dir is not None:
+        recorder = DroidObservationRecordingPolicy(
+            policy,
+            output_root=observation_record_dir,
+            exterior_image_key=image_key,
+            fps=observation_record_fps,
+        )
+        policy = recorder
+        metadata["observation_record_dir"] = str(recorder.output_dir)
     if dry_run:
         logging.info("Policy loaded successfully; dry run complete: %s", metadata)
         return
@@ -273,9 +291,13 @@ def main(
         port,
         metadata,
     )
-    WebsocketPolicyServer(
-        policy, host=host, port=port, metadata=metadata
-    ).serve_forever()
+    try:
+        WebsocketPolicyServer(
+            policy, host=host, port=port, metadata=metadata
+        ).serve_forever()
+    finally:
+        if recorder is not None:
+            recorder.close()
 
 
 if __name__ == "__main__":

@@ -27,6 +27,8 @@ PYTORCH_DEVICE="${PYTORCH_DEVICE:-cuda}"
 DEFAULT_PROMPT="${DEFAULT_PROMPT:-wipe the whiteboard}"
 EXTERIOR_CAMERA="${EXTERIOR_CAMERA:-right}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
+OBSERVATION_RECORD_DIR="${OBSERVATION_RECORD_DIR:-}"
+OBSERVATION_RECORD_FPS="${OBSERVATION_RECORD_FPS:-${CONTROL_FREQUENCY_HZ}}"
 
 if [[ "${EXTERIOR_CAMERA}" != "left" && "${EXTERIOR_CAMERA}" != "right" ]]; then
   echo "EXTERIOR_CAMERA must be left or right, got: ${EXTERIOR_CAMERA}" >&2
@@ -50,6 +52,13 @@ export CUDA_VISIBLE_DEVICES
 export TORCH_COMPILE_DISABLE="${TORCH_COMPILE_DISABLE:-1}"
 
 echo "Loading ${EXTERIOR_CAMERA}-camera checkpoint before opening ws://${SERVER_HOST}:${SERVER_PORT}"
+RECORD_ARGS=()
+if [[ -n "${OBSERVATION_RECORD_DIR}" ]]; then
+  RECORD_ARGS+=(
+    --observation-record-dir "${OBSERVATION_RECORD_DIR}"
+    --observation-record-fps "${OBSERVATION_RECORD_FPS}"
+  )
+fi
 exec "${PYTHON_BIN}" -u \
   toolkits/standalone_eval_scripts/openpi/serve_pi05_droid_rlinf.py \
   --checkpoint-dir "${CHECKPOINT_DIR}" \
@@ -60,4 +69,5 @@ exec "${PYTHON_BIN}" -u \
   --pytorch-device "${PYTORCH_DEVICE}" \
   --default-prompt "${DEFAULT_PROMPT}" \
   --exterior-camera "${EXTERIOR_CAMERA}" \
+  "${RECORD_ARGS[@]}" \
   "$@"
