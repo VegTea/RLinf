@@ -129,3 +129,38 @@ class DroidAbsoluteJointPositionPolicy(base_policy.BasePolicy):
     @override
     def reset(self) -> None:
         self._policy.reset()
+
+
+class DroidExteriorImageKeyAdapter(base_policy.BasePolicy):
+    """Map a deployment camera key to the key used during model training.
+
+    DROID Infra numbers its runtime exterior camera slots differently from the
+    wipe-board LeRobot dataset. This adapter makes that boundary explicit while
+    leaving the model's training data transform unchanged.
+    """
+
+    def __init__(
+        self,
+        policy: base_policy.BasePolicy,
+        *,
+        deployment_image_key: str,
+        training_image_key: str,
+    ) -> None:
+        self._policy = policy
+        self._deployment_image_key = deployment_image_key
+        self._training_image_key = training_image_key
+
+    @override
+    def infer(self, obs: Mapping[str, Any]) -> dict[str, Any]:
+        if self._deployment_image_key not in obs:
+            raise KeyError(
+                f"Observation is missing {self._deployment_image_key!r}, required "
+                f"for the trained camera slot {self._training_image_key!r}."
+            )
+        remapped_obs = dict(obs)
+        remapped_obs[self._training_image_key] = obs[self._deployment_image_key]
+        return self._policy.infer(remapped_obs)
+
+    @override
+    def reset(self) -> None:
+        self._policy.reset()

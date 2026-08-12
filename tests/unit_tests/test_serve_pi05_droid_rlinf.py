@@ -19,6 +19,10 @@ from pathlib import Path
 
 import torch
 
+from rlinf.models.embodiment.openpi.policies.droid_deployment_policy import (
+    DroidExteriorImageKeyAdapter,
+)
+
 _SCRIPT_PATH = (
     Path(__file__).resolve().parents[2]
     / "toolkits"
@@ -63,3 +67,45 @@ def test_adapted_sampler_disables_autograd():
     assert not model.grad_enabled
     assert model.image_shape == (1, 8, 12, 3)
     assert output.shape == (1,)
+
+
+def test_deployment_camera_keys_match_droid_infra_slots():
+    assert _MODULE._DEPLOYMENT_EXTERIOR_CAMERA_KEY == {
+        "left": "observation/exterior_image_0_left",
+        "right": "observation/exterior_image_1_left",
+    }
+    assert _MODULE._TRAINING_EXTERIOR_CAMERA_KEY == {
+        "left": "observation/exterior_image_1_left",
+        "right": "observation/exterior_image_2_left",
+    }
+
+
+def test_exterior_image_adapter_overwrites_training_key_without_mutating_request():
+    class FakePolicy:
+        def __init__(self):
+            self.observation = None
+
+        def infer(self, obs):
+            self.observation = obs
+            return {"actions": torch.zeros(15, 8)}
+
+        def reset(self):
+            pass
+
+    wrapped = FakePolicy()
+    policy = DroidExteriorImageKeyAdapter(
+        wrapped,
+        deployment_image_key="observation/exterior_image_0_left",
+        training_image_key="observation/exterior_image_1_left",
+    )
+    left_image = object()
+    stale_image = object()
+    request = {
+        "observation/exterior_image_0_left": left_image,
+        "observation/exterior_image_1_left": stale_image,
+    }
+
+    policy.infer(request)
+
+    assert wrapped.observation["observation/exterior_image_1_left"] is left_image
+    assert request["observation/exterior_image_1_left"] is stale_image

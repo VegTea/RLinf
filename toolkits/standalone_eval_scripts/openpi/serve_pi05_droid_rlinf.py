@@ -45,6 +45,7 @@ from openpi.shared import normalize as _normalize
 from rlinf.models.embodiment.openpi.dataconfig import get_openpi_config
 from rlinf.models.embodiment.openpi.policies.droid_deployment_policy import (
     DroidAbsoluteJointPositionPolicy,
+    DroidExteriorImageKeyAdapter,
 )
 from rlinf.models.embodiment.openpi.policies.observation_recording_policy import (
     DroidObservationRecordingPolicy,
@@ -52,7 +53,11 @@ from rlinf.models.embodiment.openpi.policies.observation_recording_policy import
 from rlinf.models.embodiment.openpi_pytorch.pi0_model import model as _rlinf_model
 from rlinf.models.embodiment.openpi_pytorch.pi0_model.pi0_config import Pi0Config
 
-_EXTERIOR_CAMERA_KEY = {
+_DEPLOYMENT_EXTERIOR_CAMERA_KEY = {
+    "left": "observation/exterior_image_0_left",
+    "right": "observation/exterior_image_1_left",
+}
+_TRAINING_EXTERIOR_CAMERA_KEY = {
     "left": "observation/exterior_image_1_left",
     "right": "observation/exterior_image_2_left",
 }
@@ -115,7 +120,7 @@ def _create_rlinf_pi05_droid_policy(
     pytorch_device: str,
     default_prompt: str | None,
     exterior_camera: str = "right",
-) -> tuple[DroidAbsoluteJointPositionPolicy, str]:
+) -> tuple[DroidAbsoluteJointPositionPolicy, str, str]:
     """Load an RLinf openpi_pytorch checkpoint and build a serving policy."""
     checkpoint_dir = checkpoint_dir.expanduser().resolve()
     norm_stats_dir = norm_stats_dir.expanduser().resolve()
@@ -128,9 +133,9 @@ def _create_rlinf_pi05_droid_policy(
         raise FileNotFoundError(
             f"norm_stats.json not found: {norm_stats_dir / 'norm_stats.json'}"
         )
-    if exterior_camera not in _EXTERIOR_CAMERA_KEY:
+    if exterior_camera not in _DEPLOYMENT_EXTERIOR_CAMERA_KEY:
         raise ValueError(
-            f"exterior_camera must be one of {list(_EXTERIOR_CAMERA_KEY)}, "
+            f"exterior_camera must be one of {list(_DEPLOYMENT_EXTERIOR_CAMERA_KEY)}, "
             f"got {exterior_camera!r}."
         )
     if not np.isfinite(control_frequency_hz) or control_frequency_hz <= 0:
@@ -138,7 +143,8 @@ def _create_rlinf_pi05_droid_policy(
             "control_frequency_hz must be finite and positive, got "
             f"{control_frequency_hz}."
         )
-    image_key = _EXTERIOR_CAMERA_KEY[exterior_camera]
+    deployment_image_key = _DEPLOYMENT_EXTERIOR_CAMERA_KEY[exterior_camera]
+    training_image_key = _TRAINING_EXTERIOR_CAMERA_KEY[exterior_camera]
 
     # ── 1. build transforms pipeline via the upstream openpi config ──
     train_config = get_openpi_config(
@@ -146,7 +152,7 @@ def _create_rlinf_pi05_droid_policy(
         model_path=str(checkpoint_dir),
         data_kwargs={
             "control_frequency_hz": control_frequency_hz,
-            "exterior_image_key": image_key,
+            "exterior_image_key": training_image_key,
             "norm_stats_path": str(norm_stats_dir),
         },
     )
@@ -223,10 +229,19 @@ def _create_rlinf_pi05_droid_policy(
     )
 
     # ── 5. wrap velocity policy as absolute-joint-position policy ────
-    return DroidAbsoluteJointPositionPolicy(
+    policy = DroidExteriorImageKeyAdapter(
         policy,
-        control_frequency_hz=control_frequency_hz,
-    ), image_key
+        deployment_image_key=deployment_image_key,
+        training_image_key=training_image_key,
+    )
+    return (
+        DroidAbsoluteJointPositionPolicy(
+            policy,
+            control_frequency_hz=control_frequency_hz,
+        ),
+        deployment_image_key,
+        training_image_key,
+    )
 
 
 def main(
@@ -245,16 +260,16 @@ def main(
     """Start the OpenPI WebSocket server for an RLinf pi05_droid checkpoint.
 
     Args:
-        exterior_camera: Which DROID exterior camera to use as the main view.
-            ``"left"`` maps to ``observation/exterior_image_1_left``;
-            ``"right"`` maps to ``observation/exterior_image_2_left``.
+        exterior_camera: Which physical DROID exterior camera to use. At
+            deployment, ``"left"`` reads ``observation/exterior_image_0_left``
+            and ``"right"`` reads ``observation/exterior_image_1_left``.
         observation_record_dir: Optional root under which raw observations and
             H.264 input videos are recorded in a timestamped session directory.
         observation_record_fps: Frame rate written into observation videos.
     """
     logging.basicConfig(level=logging.INFO)
 
-    policy, image_key = _create_rlinf_pi05_droid_policy(
+    policy, deployment_image_key, training_image_key = _create_rlinf_pi05_droid_policy(
         checkpoint_dir,
         norm_stats_dir,
         control_frequency_hz=control_frequency_hz,
@@ -268,7 +283,9 @@ def main(
         "native_model_action_space": "joint_velocity",
         "action_horizon": 15,
         "control_frequency_hz": control_frequency_hz,
-        "exterior_image_key": image_key,
+        "exterior_camera": exterior_camera,
+        "exterior_image_key": deployment_image_key,
+        "training_exterior_image_key": training_image_key,
         "wrist_image_key": "observation/wrist_image_left",
     }
     recorder = None
@@ -276,7 +293,7 @@ def main(
         recorder = DroidObservationRecordingPolicy(
             policy,
             output_root=observation_record_dir,
-            exterior_image_key=image_key,
+            exterior_image_key=deployment_image_key,
             fps=observation_record_fps,
         )
         policy = recorder

@@ -103,7 +103,7 @@ OK
 
 | 项目 | 形状/语义 |
 | --- | --- |
-| 选中的外部相机 | `uint8 H×W×3`，left 使用 `observation/exterior_image_1_left`；right 使用 `observation/exterior_image_2_left` |
+| 选中的外部相机 | `uint8 H×W×3`；部署请求中 left 使用 `observation/exterior_image_0_left`，right 使用 `observation/exterior_image_1_left` |
 | 腕部相机 | `uint8 H×W×3`，键名 `observation/wrist_image_left` |
 | 关节状态 | `observation/joint_position`，7 个 Franka 当前关节绝对位置，单位 rad |
 | 夹爪状态 | `observation/gripper_position`，形状 `(1,)` |
@@ -155,14 +155,17 @@ gripper action space: position
 
 客户端外部相机 ID 必须对应训练相机：
 
-| 模型 | `EXTERIOR_CAMERA` | droid-infra 应传入第一外部相机槽的实际相机 |
-| --- | --- | --- |
-| right checkpoint | `right` | 真机右侧外部相机 |
-| left checkpoint | `left` | 真机左侧外部相机 |
+训练数据和 droid-infra 的外部相机槽位编号不同。服务端已在请求进入模型前
+完成重映射，客户端不需要伪造训练数据的键名：
+
+| 物理相机 / checkpoint | 训练数据键 | droid-infra 部署请求键 | `EXTERIOR_CAMERA` |
+| --- | --- | --- | --- |
+| 左侧 / left checkpoint | `exterior_image_1_left` | `observation/exterior_image_0_left` | `left` |
+| 右侧 / right checkpoint | `exterior_image_2_left` | `observation/exterior_image_1_left` | `right` |
 
 启动前先确认相机画面方向；left/right 的含义来自数据采集的
-`exterior_image_1_left` 与 `exterior_image_2_left` 键，不应仅按物理安装位置
-猜测。
+`exterior_image_1_left` 与 `exterior_image_2_left` 键，以及 droid-infra 的实际
+camera slot，不应仅按物理安装位置猜测。
 
 ### Execute horizon
 

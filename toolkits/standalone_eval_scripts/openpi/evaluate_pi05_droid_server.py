@@ -32,9 +32,13 @@ DEFAULT_DATASET_PATH = Path(
     "/inspire/hdd/global_user/czxs24230043/data/wipe_board_v1_zed196_force"
 )
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[3] / "outputs" / "pi05_droid_eval"
-EXTERIOR_CAMERA_KEYS = {
+DATASET_EXTERIOR_CAMERA_KEYS = {
     "left": "observation/exterior_image_1_left",
     "right": "observation/exterior_image_2_left",
+}
+DEPLOYMENT_EXTERIOR_CAMERA_KEYS = {
+    "left": "observation/exterior_image_0_left",
+    "right": "observation/exterior_image_1_left",
 }
 
 
@@ -283,34 +287,48 @@ def resolve_exterior_camera(
     requested: str, metadata: dict[str, Any]
 ) -> tuple[str, str]:
     """Resolve and validate the client exterior view against server metadata."""
-    metadata_key = metadata.get("exterior_image_key")
+    metadata_camera = metadata.get("exterior_camera")
     if requested == "auto":
-        matches = [
-            name for name, key in EXTERIOR_CAMERA_KEYS.items() if key == metadata_key
-        ]
-        if len(matches) != 1:
-            raise ValueError(
-                "Cannot infer exterior camera from server metadata: "
-                f"exterior_image_key={metadata_key!r}."
-            )
-        requested = matches[0]
-    image_key = EXTERIOR_CAMERA_KEYS[requested]
-    if metadata_key is not None and metadata_key != image_key:
+        if metadata_camera in DEPLOYMENT_EXTERIOR_CAMERA_KEYS:
+            requested = metadata_camera
+        else:
+            # Backward compatibility for servers published before deployment
+            # camera slots were made explicit.
+            metadata_key = metadata.get("exterior_image_key")
+            matches = [
+                name
+                for name, key in DATASET_EXTERIOR_CAMERA_KEYS.items()
+                if key == metadata_key
+            ]
+            if len(matches) != 1:
+                raise ValueError(
+                    "Cannot infer exterior camera from server metadata: "
+                    f"exterior_camera={metadata_camera!r}, "
+                    f"exterior_image_key={metadata_key!r}."
+                )
+            requested = matches[0]
+    deployment_image_key = DEPLOYMENT_EXTERIOR_CAMERA_KEYS[requested]
+    metadata_key = metadata.get("exterior_image_key")
+    if metadata_camera in DEPLOYMENT_EXTERIOR_CAMERA_KEYS and (
+        metadata_key is not None and metadata_key != deployment_image_key
+    ):
         raise ValueError(
-            f"Requested {requested!r} exterior camera ({image_key}) but server "
-            f"expects {metadata_key}."
+            f"Requested {requested!r} exterior camera ({deployment_image_key}) but "
+            f"server expects {metadata_key}."
         )
-    return requested, image_key
+    return requested, deployment_image_key
 
 
 def _make_observation(
     sample: dict[str, Any], prompt: str | None, exterior_camera: str
 ) -> dict[str, Any]:
     joint_position = _to_numpy(sample["joint_position"]).astype(np.float32)
-    image_key = EXTERIOR_CAMERA_KEYS[exterior_camera]
-    dataset_image_key = image_key.removeprefix("observation/")
+    deployment_image_key = DEPLOYMENT_EXTERIOR_CAMERA_KEYS[exterior_camera]
+    dataset_image_key = DATASET_EXTERIOR_CAMERA_KEYS[exterior_camera].removeprefix(
+        "observation/"
+    )
     return {
-        image_key: _to_numpy(sample[dataset_image_key]),
+        deployment_image_key: _to_numpy(sample[dataset_image_key]),
         "observation/wrist_image_left": _to_numpy(sample["wrist_image_left"]),
         "observation/joint_position": joint_position,
         "observation/gripper_position": _to_numpy(sample["gripper_position"]).astype(
