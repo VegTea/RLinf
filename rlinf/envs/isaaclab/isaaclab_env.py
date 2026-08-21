@@ -13,12 +13,17 @@
 # limitations under the License.
 
 import copy
+import json
+import os
 from typing import Optional
 
 import gymnasium as gym
+import imageio
+import numpy as np
 import torch
 from omegaconf import open_dict
 
+from rlinf.envs.isaaclab.trajectory_recorder import IsaacLabTrajectoryRecorder
 from rlinf.envs.isaaclab.venv import SubProcIsaacLabEnv
 
 
@@ -54,12 +59,29 @@ class IsaaclabBaseEnv(gym.Env):
         self.auto_reset = cfg.auto_reset
         self.prev_step_reward = torch.zeros(self.num_envs).to(self.device)
         self.use_rel_reward = cfg.use_rel_reward
+        self.init_cube_positions = None
+        self._reset_snapshot_counter = 0
+        self._final_snapshot_counter = 0
+        self._episode_ids = torch.zeros(self.num_envs, dtype=torch.int64).to(
+            self.device
+        )
+        self._has_reset_once = torch.zeros(self.num_envs, dtype=torch.bool).to(
+            self.device
+        )
+        self._current_scenario_records: list[dict | None] = [None] * self.num_envs
 
         self._init_metrics()
         self._elapsed_steps = torch.zeros(self.num_envs, dtype=torch.int32).to(
             self.device
         )
         self.ignore_terminations = cfg.ignore_terminations
+        trajectory_cfg = cfg.get("trajectory_record_cfg", None)
+        self.trajectory_recorder = IsaacLabTrajectoryRecorder(
+            trajectory_cfg,
+            num_envs=self.num_envs,
+            worker_rank=getattr(self.worker_info, "rank", 0),
+            seed=self.seed,
+        ) if trajectory_cfg is not None else None
 
     def _make_env_function(self):
         raise NotImplementedError
@@ -99,8 +121,88 @@ class IsaaclabBaseEnv(gym.Env):
         episode_info["return"] = self.returns.clone()
         episode_info["episode_len"] = self.elapsed_steps.clone()
         episode_info["reward"] = episode_info["return"] / episode_info["episode_len"]
+        episode_info["env_id"] = torch.arange(self.num_envs, device=self.device)
+        episode_info["episode_id"] = self._episode_ids.clone()
+        episode_info["worker_rank"] = torch.full(
+            (self.num_envs,),
+            int(getattr(self.worker_info, "rank", 0)),
+            dtype=torch.int64,
+            device=self.device,
+        )
+        scenario_ids = []
+        for record in self._current_scenario_records:
+            try:
+                scenario_ids.append(int(record.get("id", -1)) if record else -1)
+            except (TypeError, ValueError):
+                scenario_ids.append(-1)
+        episode_info["scenario_id"] = torch.tensor(
+            scenario_ids, dtype=torch.int64, device=self.device
+        )
+        if self.init_cube_positions is not None:
+            episode_info["init_cube_positions"] = self.init_cube_positions.clone()
+            episode_info["init_cube_1_pos"] = self.init_cube_positions[:, 0].clone()
+            episode_info["init_cube_2_pos"] = self.init_cube_positions[:, 1].clone()
+            episode_info["init_cube_3_pos"] = self.init_cube_positions[:, 2].clone()
         infos["episode"] = episode_info
         return infos
+
+    def _extract_init_cube_positions(self, raw_obs):
+        if not isinstance(raw_obs, dict) or "policy" not in raw_obs:
+            return None
+
+        policy_obs = raw_obs["policy"]
+        object_obs = policy_obs.get("object", None)
+        if object_obs is not None and object_obs.shape[-1] >= 17:
+            return torch.stack(
+                (
+                    object_obs[:, 0:3],
+                    object_obs[:, 7:10],
+                    object_obs[:, 14:17],
+                ),
+                dim=1,
+            )
+
+        cube_positions = policy_obs.get("cube_positions", None)
+        if cube_positions is not None and cube_positions.shape[-1] >= 9:
+            return cube_positions.reshape(cube_positions.shape[0], 3, 3)
+
+        return None
+
+    def _record_init_cube_positions(self, raw_obs, env_ids=None):
+        init_cube_positions = self._extract_init_cube_positions(raw_obs)
+        if init_cube_positions is None:
+            if self.cfg.get("debug_init_cube_positions", False):
+                print(
+                    "[IsaacLab debug] failed to extract init cube positions from reset obs",
+                    flush=True,
+                )
+            return
+
+        init_cube_positions = init_cube_positions.clone()
+        if self.init_cube_positions is None:
+            self.init_cube_positions = torch.zeros(
+                self.num_envs,
+                3,
+                3,
+                dtype=init_cube_positions.dtype,
+                device=init_cube_positions.device,
+            )
+
+        if env_ids is None or init_cube_positions.shape[0] == self.num_envs:
+            self.init_cube_positions[:] = init_cube_positions[: self.num_envs]
+        else:
+            self.init_cube_positions[env_ids] = init_cube_positions
+
+        if self.cfg.get("debug_init_cube_positions", False) and not getattr(
+            self, "_printed_init_cube_positions", False
+        ):
+            sample = self.init_cube_positions[:2].detach().cpu().tolist()
+            print(
+                "[IsaacLab debug] init_cube_positions shape: "
+                f"{tuple(self.init_cube_positions.shape)}, sample: {sample}",
+                flush=True,
+            )
+            self._printed_init_cube_positions = True
 
     def reset(
         self,
@@ -108,13 +210,307 @@ class IsaaclabBaseEnv(gym.Env):
         env_ids: Optional[torch.Tensor] = None,
     ):
         if env_ids is None:
-            obs, _ = self.env.reset(seed=seed)
+            target_env_ids = torch.arange(self.num_envs, device=self.device)
         else:
-            obs, _ = self.env.reset(seed=seed, env_ids=env_ids)
+            target_env_ids = env_ids.to(self.device)
+
+        if target_env_ids.numel() > 0:
+            seen_mask = self._has_reset_once[target_env_ids]
+            if seen_mask.any():
+                self._episode_ids[target_env_ids[seen_mask]] += 1
+
+        if env_ids is None:
+            obs, reset_info = self.env.reset(seed=seed)
+        else:
+            obs, reset_info = self.env.reset(seed=seed, env_ids=env_ids)
         infos = {}
+        scenario_records = self._extract_scenario_records(reset_info)
+        self._record_scenario_records(scenario_records)
+        self._record_init_cube_positions(obs, env_ids)
+        self._save_reset_snapshots(obs, env_ids)
+        if self.trajectory_recorder is not None:
+            self.trajectory_recorder.reset(target_env_ids, scenario_records, obs)
+        if target_env_ids.numel() > 0:
+            self._has_reset_once[target_env_ids] = True
         obs = self._wrap_obs(obs)
         self._reset_metrics(env_ids)
         return obs, infos
+
+    def _extract_scenario_records(self, reset_info):
+        if not isinstance(reset_info, dict):
+            return {}
+        records = reset_info.get("scenario_records", {})
+        if not isinstance(records, dict):
+            return {}
+        return {int(env_id): record for env_id, record in records.items()}
+
+    def _record_scenario_records(self, scenario_records):
+        for env_id, record in scenario_records.items():
+            if 0 <= env_id < self.num_envs:
+                self._current_scenario_records[env_id] = record
+
+    def _to_numpy_image_batch(self, image_tensor):
+        if isinstance(image_tensor, torch.Tensor):
+            image_tensor = image_tensor.detach().cpu().numpy()
+        else:
+            image_tensor = np.asarray(image_tensor)
+
+        if image_tensor.ndim == 3:
+            image_tensor = image_tensor[None]
+
+        if image_tensor.ndim != 4:
+            return None
+
+        if image_tensor.shape[1] in (1, 3, 4) and image_tensor.shape[-1] not in (
+            1,
+            3,
+            4,
+        ):
+            image_tensor = np.transpose(image_tensor, (0, 2, 3, 1))
+
+        if image_tensor.dtype != np.uint8:
+            image_tensor = np.clip(image_tensor, 0, 255).astype(np.uint8)
+
+        return image_tensor
+
+    def _get_reset_snapshot_root(self):
+        snapshot_cfg = getattr(self.cfg, "reset_snapshot_cfg", None)
+        if snapshot_cfg is None or not getattr(snapshot_cfg, "enabled", False):
+            return None
+
+        root_dir = snapshot_cfg.output_dir
+        worker_rank = getattr(self.worker_info, "rank", 0)
+        return os.path.join(root_dir, f"worker_{worker_rank:03d}")
+
+    def _save_single_reset_snapshot(
+        self,
+        image,
+        image_kind,
+        root_dir,
+        reset_id,
+        env_id,
+        cube_pos,
+    ):
+        image_dir = os.path.join(root_dir, image_kind)
+        os.makedirs(image_dir, exist_ok=True)
+        x = float(cube_pos[0].item())
+        y = float(cube_pos[1].item())
+        file_name = (
+            f"reset_{reset_id:06d}_env{env_id:03d}_"
+            f"x{x:+.4f}_y{y:+.4f}.png"
+        )
+        imageio.imwrite(os.path.join(image_dir, file_name), image)
+        return file_name
+
+    def _save_reset_snapshots(self, raw_obs, env_ids=None):
+        root_dir = self._get_reset_snapshot_root()
+        if root_dir is None or self.init_cube_positions is None:
+            return
+
+        snapshot_cfg = self.cfg.reset_snapshot_cfg
+        policy_obs = raw_obs.get("policy", {}) if isinstance(raw_obs, dict) else {}
+        table_images = self._to_numpy_image_batch(policy_obs.get("table_cam"))
+        wrist_images = self._to_numpy_image_batch(policy_obs.get("wrist_cam"))
+
+        if env_ids is None:
+            local_env_ids = torch.arange(self.num_envs, device=self.device)
+        else:
+            local_env_ids = env_ids.to(self.device)
+
+        if table_images is None and wrist_images is None:
+            return
+
+        os.makedirs(root_dir, exist_ok=True)
+        manifest_path = os.path.join(root_dir, "manifest.jsonl")
+
+        with open(manifest_path, "a", encoding="utf-8") as manifest_fp:
+            for batch_idx, env_id_tensor in enumerate(local_env_ids):
+                env_id = int(env_id_tensor.item())
+                reset_id = self._reset_snapshot_counter
+                self._reset_snapshot_counter += 1
+
+                cube_2_pos = self.init_cube_positions[env_id, 1].detach().cpu()
+                record = {
+                    "reset_id": reset_id,
+                    "env_id": env_id,
+                    "episode_id": int(self._episode_ids[env_id].item()),
+                    "worker_rank": getattr(self.worker_info, "rank", 0),
+                    "seed": int(self.seed),
+                    "cube_2_xyz": [float(v) for v in cube_2_pos.tolist()],
+                }
+
+                if (
+                    getattr(snapshot_cfg, "save_table_png", True)
+                    and table_images is not None
+                    and batch_idx < table_images.shape[0]
+                ):
+                    record["table_png"] = self._save_single_reset_snapshot(
+                        table_images[batch_idx],
+                        "table",
+                        root_dir,
+                        reset_id,
+                        env_id,
+                        cube_2_pos,
+                    )
+
+                if (
+                    getattr(snapshot_cfg, "save_wrist_png", False)
+                    and wrist_images is not None
+                    and batch_idx < wrist_images.shape[0]
+                ):
+                    record["wrist_png"] = self._save_single_reset_snapshot(
+                        wrist_images[batch_idx],
+                        "wrist",
+                        root_dir,
+                        reset_id,
+                        env_id,
+                        cube_2_pos,
+                    )
+
+                if getattr(snapshot_cfg, "save_metadata", True):
+                    manifest_fp.write(json.dumps(record, ensure_ascii=True) + "\n")
+
+    def _get_final_snapshot_root(self):
+        snapshot_cfg = getattr(self.cfg, "final_snapshot_cfg", None)
+        if snapshot_cfg is None or not getattr(snapshot_cfg, "enabled", False):
+            return None
+
+        root_dir = snapshot_cfg.output_dir
+        worker_rank = getattr(self.worker_info, "rank", 0)
+        return os.path.join(root_dir, f"worker_{worker_rank:03d}")
+
+    def _tensor_value_for_env(self, value, env_id):
+        if value is None:
+            return None
+        if isinstance(value, torch.Tensor):
+            if value.shape == ():
+                return value.detach().cpu().item()
+            return value[env_id].detach().cpu()
+        if isinstance(value, np.ndarray):
+            if value.shape == ():
+                return value.item()
+            return value[env_id]
+        if isinstance(value, (list, tuple)):
+            return value[env_id]
+        return value
+
+    def _save_single_final_snapshot(
+        self,
+        image,
+        image_kind,
+        root_dir,
+        snapshot_id,
+        label,
+        env_id,
+        episode_id,
+    ):
+        image_dir = os.path.join(root_dir, label, image_kind)
+        os.makedirs(image_dir, exist_ok=True)
+        file_name = (
+            f"success_hit_{snapshot_id:06d}_env{env_id:03d}_"
+            f"episode{episode_id:06d}_{label}.png"
+        )
+        imageio.imwrite(os.path.join(image_dir, file_name), image)
+        return os.path.join(label, image_kind, file_name)
+
+    def _save_success_hit_snapshots(
+        self,
+        raw_obs,
+        success_hits,
+        infos,
+        terminations,
+        truncations,
+    ):
+        root_dir = self._get_final_snapshot_root()
+        if root_dir is None or not success_hits.any():
+            return
+
+        snapshot_cfg = self.cfg.final_snapshot_cfg
+        policy_obs = raw_obs.get("policy", {}) if isinstance(raw_obs, dict) else {}
+        table_images = self._to_numpy_image_batch(policy_obs.get("table_cam"))
+        wrist_images = self._to_numpy_image_batch(policy_obs.get("wrist_cam"))
+        if table_images is None and wrist_images is None:
+            return
+
+        episode_info = infos.get("episode", {}) if isinstance(infos, dict) else {}
+        final_cube_positions = self._extract_init_cube_positions(raw_obs)
+        hit_env_ids = torch.arange(self.num_envs, device=self.device)[success_hits]
+
+        os.makedirs(root_dir, exist_ok=True)
+        manifest_path = os.path.join(root_dir, "manifest.jsonl")
+        with open(manifest_path, "a", encoding="utf-8") as manifest_fp:
+            for env_id_tensor in hit_env_ids:
+                env_id = int(env_id_tensor.item())
+                snapshot_id = self._final_snapshot_counter
+                self._final_snapshot_counter += 1
+
+                label = "success_hit"
+                episode_id = int(
+                    self._tensor_value_for_env(
+                        episode_info.get("episode_id"), env_id
+                    )
+                    or 0
+                )
+                cube_positions = None
+                if final_cube_positions is not None:
+                    cube_positions = final_cube_positions[env_id].detach().cpu()
+                elif self.init_cube_positions is not None:
+                    cube_positions = self.init_cube_positions[env_id].detach().cpu()
+
+                record = {
+                    "snapshot_id": snapshot_id,
+                    "label": label,
+                    "env_id": env_id,
+                    "episode_id": episode_id,
+                    "worker_rank": getattr(self.worker_info, "rank", 0),
+                    "seed": int(self.seed),
+                    "trigger": "success_hit",
+                    "success_once": True,
+                    "success_at_end": bool(
+                        self._tensor_value_for_env(terminations, env_id)
+                    ),
+                    "truncated": bool(
+                        self._tensor_value_for_env(truncations, env_id)
+                    ),
+                }
+                if cube_positions is not None:
+                    record["cube_xyz"] = [
+                        [float(v) for v in cube_pos.tolist()]
+                        for cube_pos in cube_positions
+                    ]
+
+                if (
+                    getattr(snapshot_cfg, "save_table_png", True)
+                    and table_images is not None
+                    and env_id < table_images.shape[0]
+                ):
+                    record["table_png"] = self._save_single_final_snapshot(
+                        table_images[env_id],
+                        "table",
+                        root_dir,
+                        snapshot_id,
+                        label,
+                        env_id,
+                        episode_id,
+                    )
+
+                if (
+                    getattr(snapshot_cfg, "save_wrist_png", False)
+                    and wrist_images is not None
+                    and env_id < wrist_images.shape[0]
+                ):
+                    record["wrist_png"] = self._save_single_final_snapshot(
+                        wrist_images[env_id],
+                        "wrist",
+                        root_dir,
+                        snapshot_id,
+                        label,
+                        env_id,
+                        episode_id,
+                    )
+
+                if getattr(snapshot_cfg, "save_metadata", True):
+                    manifest_fp.write(json.dumps(record, ensure_ascii=True) + "\n")
 
     def step(self, actions=None, auto_reset=True):
         obs, step_reward, terminations, truncations, infos = self.env.step(actions)
@@ -122,8 +518,7 @@ class IsaaclabBaseEnv(gym.Env):
         step_reward = step_reward.clone()
         terminations = terminations.clone()
         truncations = truncations.clone()
-
-        obs = self._wrap_obs(obs)
+        success_hits = (~self.success_once) & (step_reward > 0)
 
         self._elapsed_steps += 1
 
@@ -134,9 +529,25 @@ class IsaaclabBaseEnv(gym.Env):
         infos = self._record_metrics(
             step_reward, terminations, {}
         )  # return infos is useless
+        self._save_success_hit_snapshots(
+            obs, success_hits, infos, terminations, truncations
+        )
+        if self.trajectory_recorder is not None:
+            self.trajectory_recorder.record_step(
+                actions=actions,
+                raw_obs=obs,
+                rewards=step_reward,
+                terminations=terminations,
+                truncations=truncations,
+                dones=dones,
+                success_hits=success_hits,
+                infos=infos,
+            )
         if self.ignore_terminations:
             infos["episode"]["success_at_end"] = terminations
             terminations[:] = False
+
+        obs = self._wrap_obs(obs)
 
         _auto_reset = auto_reset and self.auto_reset  # always False
         if dones.any() and _auto_reset:
@@ -236,6 +647,26 @@ class IsaaclabBaseEnv(gym.Env):
         No muti task.
         """
         pass
+
+    def set_scenario_curriculum_stage(self, stage_index):
+        if hasattr(self.env, "set_scenario_curriculum_stage"):
+            return self.env.set_scenario_curriculum_stage(stage_index)
+        return {"enabled": False, "reason": "scenario_curriculum_not_supported"}
+
+    def set_scenario_curriculum_progress(self, stage_index=None, stage_step=None):
+        if hasattr(self.env, "set_scenario_curriculum_progress"):
+            return self.env.set_scenario_curriculum_progress(stage_index, stage_step)
+        return {"enabled": False, "reason": "scenario_curriculum_not_supported"}
+
+    def get_scenario_curriculum_state(self):
+        if hasattr(self.env, "get_scenario_curriculum_state"):
+            return self.env.get_scenario_curriculum_state()
+        return {"enabled": False, "reason": "scenario_curriculum_not_supported"}
+
+    def get_trajectory_record_counts(self):
+        if self.trajectory_recorder is None:
+            return {"enabled": False, "success": 0, "fail": 0}
+        return self.trajectory_recorder.get_counts()
 
     """
     Below codes are all copied from libero, thanks to the author of libero!

@@ -1,0 +1,239 @@
+\section{Method}
+\label{sec:method}
+
+We present \textbf{AGILE}, an adaptive generalization framework that expands the
+training distribution of a Vision-Language-Action (VLA) policy according to the
+policy's measured competence. Instead of training on a fixed set of task
+configurations, AGILE organizes the configuration space into progressively
+larger regions and automatically switches to the next region when the current
+policy is sufficiently reliable. The key idea is to use a world-model-induced
+representation to estimate relations among task configurations, while using
+online policy success as feedback for when to expand the training distribution.
+
+\subsection{Problem Formulation}
+\label{subsec:problem_formulation}
+
+We consider a robotic manipulation task family parameterized by a task
+configuration $s \in \mathcal{S}$. In our setting, a configuration specifies
+factors such as object initial poses, camera pose, and visual appearance of the
+workspace. Given an observation $o_t$, language instruction $l$, and robot state,
+a VLA policy $\pi_\theta$ predicts an action chunk
+$a_{t:t+H-1} \sim \pi_\theta(\cdot \mid o_t, l)$. The goal is to learn a policy
+that succeeds not only on a narrow training distribution, but across a broader
+configuration set $\mathcal{S}$.
+
+Directly training on the full configuration set can be inefficient because many
+configurations are initially too difficult for the policy, producing sparse or
+low-quality learning signals. Conversely, training on a small fixed subset
+limits generalization. AGILE addresses this by maintaining a stage-dependent
+training set $\mathcal{A}_k \subseteq \mathcal{S}$, where $k$ is the current
+expansion stage and
+\begin{equation}
+    \mathcal{A}_0 \subset \mathcal{A}_1 \subset \cdots \subset \mathcal{A}_K.
+\end{equation}
+The training distribution at stage $k$ samples configurations from
+$\mathcal{A}_k$. Stage transitions are triggered automatically by policy
+performance rather than by a fixed hand-designed training schedule.
+
+\subsection{World-Model Representation of Task Configurations}
+\label{subsec:world_model_representation}
+
+AGILE assumes access to a world model or representation model that maps each
+task configuration $s_i$ to an embedding vector $z_i \in \mathbb{R}^d$:
+\begin{equation}
+    z_i = f_{\mathrm{WM}}(s_i).
+\end{equation}
+The embedding is used to estimate how close a candidate configuration is to a
+reference or already mastered region. We use cosine distance as the default
+distance measure:
+\begin{equation}
+    d(i,j) = 1 - \frac{z_i^\top z_j}{\|z_i\|_2 \|z_j\|_2}.
+\end{equation}
+This distance is not treated as an absolute task difficulty label. Instead, it
+provides a structured ordering over task configurations, allowing AGILE to
+expand training from familiar regions to less familiar ones.
+
+\subsection{Stage Construction}
+\label{subsec:stage_construction}
+
+AGILE supports two ways to construct expansion stages.
+
+\paragraph{Reference-distance expansion.}
+Given a reference configuration $s_{\mathrm{ref}}$, we sort all candidate
+configurations by their distance to $s_{\mathrm{ref}}$ and choose cumulative
+stage sets according to predefined stage sizes:
+\begin{equation}
+    \mathcal{A}_k =
+    \{s_i \mid \operatorname{rank}_{d(i,\mathrm{ref})}(s_i) \leq n_k\},
+\end{equation}
+where $n_k$ is the cumulative number of configurations allowed at stage $k$.
+This produces a simple and reproducible expansion from the reference region.
+
+\paragraph{Dynamic region growing.}
+To reduce reliance on a single reference point, we also consider a dynamic
+top-$m$ expansion strategy. Let $\mathcal{M}_{k-1}$ denote the mastered region
+before constructing stage $k$, initialized by either a reference configuration
+or a base set. For each unselected candidate $s_i$, AGILE computes its average
+distance to the closest $m$ configurations in $\mathcal{M}_{k-1}$:
+\begin{equation}
+    D(i, \mathcal{M}_{k-1}) =
+    \frac{1}{m}
+    \sum_{s_j \in \mathrm{NN}_m(s_i, \mathcal{M}_{k-1})} d(i,j).
+\end{equation}
+The next stage adds the candidates with the smallest values of
+$D(i, \mathcal{M}_{k-1})$:
+\begin{equation}
+    \Delta_k =
+    \operatorname{TopSmallest}_{n_k - n_{k-1}}
+    \{D(i, \mathcal{M}_{k-1}) \mid s_i \notin \mathcal{A}_{k-1}\},
+\end{equation}
+\begin{equation}
+    \mathcal{A}_k = \mathcal{A}_{k-1} \cup \Delta_k.
+\end{equation}
+This creates a data-driven expansion path over the task-configuration space.
+Each stage is stored as a manifest containing both the newly added
+configurations $\Delta_k$ and the cumulative allowed set $\mathcal{A}_k$.
+
+\subsection{Adaptive Distribution Expansion During Training}
+\label{subsec:adaptive_expansion}
+
+During policy learning, AGILE samples environment resets only from the current
+allowed set $\mathcal{A}_k$. Let $r_i \in \{0,1\}$ denote whether an episode on
+configuration $s_i$ succeeds. At training step $t$, we estimate the success rate
+over rollouts collected from the current stage:
+\begin{equation}
+    \hat{p}_t =
+    \frac{1}{|\mathcal{B}_t|}
+    \sum_{(s_i,r_i)\in\mathcal{B}_t} r_i,
+\end{equation}
+where $\mathcal{B}_t$ is the set of evaluated rollouts in the current update.
+The stage is advanced when the measured competence exceeds a threshold
+$\tau_k$ for a required number of hits:
+\begin{equation}
+    \sum_{t' \in \mathcal{H}_k}
+    \mathbf{1}[\hat{p}_{t'} \geq \tau_k]
+    \geq h_k,
+\end{equation}
+where $\mathcal{H}_k$ stores observations within the current stage and $h_k$ is
+the required number of successful hits. In our implementation, hits do not need
+to be consecutive unless explicitly configured. This avoids overreacting to a
+single noisy evaluation step while still allowing the training distribution to
+expand automatically once the policy becomes reliable.
+
+We further support a grouped moving-average criterion that separates the
+performance on previously available configurations and newly added
+configurations. For stage $k>0$, let $\mathcal{A}_{k-1}$ be the old set and
+$\Delta_k$ be the new increment. We compute:
+\begin{equation}
+    \hat{p}^{\mathrm{old}}_t =
+    \mathbb{E}[r_i \mid s_i \in \mathcal{A}_{k-1}],
+    \quad
+    \hat{p}^{\mathrm{new}}_t =
+    \mathbb{E}[r_i \mid s_i \in \Delta_k].
+\end{equation}
+AGILE advances only when the moving average on the new increment is high enough
+and the cumulative performance does not fall below a floor:
+\begin{equation}
+    \overline{p}^{\mathrm{new}}_t \geq \tau^{\mathrm{new}}_k
+    \quad \land \quad
+    \overline{p}^{\mathrm{cum}}_t \geq \tau^{\mathrm{cum}}_k.
+\end{equation}
+This criterion explicitly asks whether the newly introduced region has become
+learnable, which is important for diagnosing and improving generalization.
+
+\paragraph{Simulation and real-world expansion.}
+AGILE uses different adaptation mechanisms depending on the training setting.
+In simulation, the policy is optimized with reinforcement learning within the
+current stage until either the advancement criterion is satisfied or a maximum
+number of stage steps is reached. The system then expands the environment reset
+distribution to the next stage. In real-world training, AGILE can additionally
+use a DAgger-style data correction loop: rollouts with low task success or poor
+execution quality are selected for expert correction, and the corrected
+trajectories are added back to the training set. Thus, simulation experiments
+mainly validate automatic distribution expansion under RL, while real-world
+experiments instantiate the same generalization-driven expansion principle
+through active corrective data aggregation.
+
+\subsection{Sampling Newly Added Configurations}
+\label{subsec:mixing}
+
+When a new stage is activated, the cumulative set can be much larger than the
+newly added set. Uniform sampling over $\mathcal{A}_k$ may therefore under-sample
+the new configurations. AGILE optionally uses a short-term mixture schedule:
+\begin{equation}
+    s \sim
+    \lambda_t \, \mathrm{Unif}(\Delta_k)
+    + (1-\lambda_t) \, \mathrm{Unif}(\mathcal{A}_{k-1}),
+\end{equation}
+where $\lambda_t$ can decay with the number of training steps spent in the
+current stage. This gives the policy more updates on newly introduced
+configurations while preserving rehearsal on previously learned regions.
+
+\subsection{Policy Optimization}
+\label{subsec:policy_optimization}
+
+AGILE is independent of the specific policy optimizer. In our implementation,
+we train the VLA policy with PPO-style actor-critic updates. Rollouts are
+collected from IsaacLab environments using the active configuration set
+$\mathcal{A}_k$. The environment returns standard episode rewards and success
+signals, while the expansion controller consumes only aggregated success
+statistics for stage advancement. Thus the learning objective remains unchanged;
+AGILE changes the training distribution rather than the reward definition.
+
+Let $\mathcal{D}_k$ denote rollouts collected at stage $k$. The policy is updated
+by maximizing the clipped policy objective with value learning:
+\begin{equation}
+    \mathcal{L}(\theta) =
+    \mathbb{E}_{\mathcal{D}_k}
+    \left[
+    \min
+    \left(
+    \rho_t(\theta) \hat{A}_t,
+    \operatorname{clip}(\rho_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t
+    \right)
+    \right],
+\end{equation}
+where $\rho_t(\theta)$ is the policy likelihood ratio and $\hat{A}_t$ is the
+advantage estimate. The same optimizer and model architecture can therefore be
+used with or without AGILE.
+
+\subsection{Implementation Details}
+\label{subsec:implementation_details}
+
+Each task configuration is stored as one JSONL record with a unique scenario id.
+The stage manifest stores exact ids for each incremental and cumulative stage.
+At runtime, the scheduler samples from the active ids and applies the selected
+configuration during environment reset. Updating the active stage only changes
+the scheduler's allowed id set; it does not recreate the IsaacLab environment.
+This is critical for keeping scene switching efficient.
+
+In the main 10-stage setting, we use 200 configurations with cumulative stage
+sizes:
+\begin{equation}
+    (10, 20, 40, 60, 80, 100, 120, 140, 170, 200).
+\end{equation}
+The first stage therefore contains only 10 configurations, and later stages
+gradually expand the training distribution. For larger-scale experiments, we
+also use 19-stage variants over 10,025 configurations.
+
+\begin{algorithm}[t]
+\caption{AGILE: Adaptive Generalization via Iterative Learning and Expansion}
+\label{alg:agile}
+\begin{algorithmic}[1]
+\REQUIRE Candidate configurations $\mathcal{S}$, embeddings $\{z_i\}$, stage sizes $\{n_k\}_{k=0}^{K}$, success thresholds $\{\tau_k\}$, hit counts $\{h_k\}$
+\STATE Build stage manifest $\{\Delta_k, \mathcal{A}_k\}_{k=0}^{K}$ from world-model embeddings
+\STATE Initialize policy $\pi_\theta$ and stage index $k \leftarrow 0$
+\STATE Set active training configurations to $\mathcal{A}_0$
+\WHILE{training is not finished}
+    \STATE Sample configurations $s \sim \mathcal{A}_k$ and collect rollouts
+    \STATE Update $\pi_\theta$ with policy optimization
+    \STATE Estimate success rate on the current stage
+    \IF{stage advancement criterion is satisfied and $k < K$}
+        \STATE $k \leftarrow k + 1$
+        \STATE Update active configurations to $\mathcal{A}_k$
+        \STATE Reset stage-level success statistics
+    \ENDIF
+\ENDWHILE
+\RETURN Trained policy $\pi_\theta$
+\end{algorithmic}
+\end{algorithm}

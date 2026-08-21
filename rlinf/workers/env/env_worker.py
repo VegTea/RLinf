@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import asyncio
+import json
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
@@ -108,6 +110,16 @@ class EnvWorker(Worker):
                 torch.zeros(self.eval_num_envs_per_stage, dtype=torch.bool)
                 for _ in range(self.stage_num)
             ]
+        self.eval_per_episode_result_dir = None
+        self.eval_per_episode_skip_existing = True
+        if self.enable_eval:
+            result_dir = self.cfg.env.eval.get("per_episode_result_dir", None)
+            if result_dir:
+                self.eval_per_episode_result_dir = Path(str(result_dir))
+                self.eval_per_episode_skip_existing = bool(
+                    self.cfg.env.eval.get("per_episode_skip_existing", True)
+                )
+        self._curriculum_diag_step = 0
 
     def init_worker(self):
         self.dst_rank_map = self._setup_dst_rank_map()
@@ -481,12 +493,67 @@ class EnvWorker(Worker):
             elif "episode" in infos:
                 for key in infos["episode"]:
                     env_info[key] = infos["episode"][key][newly_done].cpu()
+            self._write_eval_per_episode_results(env_info, stage_id)
 
         env_output = EnvOutput(
             obs=extracted_obs,
             final_obs=final_obs,
         )
         return env_output, env_info
+
+    def _write_eval_per_episode_results(
+        self, env_info: dict[str, Any], stage_id: int
+    ):
+        if self.eval_per_episode_result_dir is None:
+            return
+        if "scenario_id" not in env_info or "success_once" not in env_info:
+            return
+
+        result_dir = self.eval_per_episode_result_dir
+        result_dir.mkdir(parents=True, exist_ok=True)
+
+        scenario_ids = env_info["scenario_id"].reshape(-1).to(torch.int64)
+        successes = env_info["success_once"].reshape(-1).float()
+        returns = env_info.get("return", None)
+        episode_lens = env_info.get("episode_len", None)
+        env_ids = env_info.get("env_id", None)
+        episode_ids = env_info.get("episode_id", None)
+        worker_ranks = env_info.get("worker_rank", None)
+
+        for idx, scenario_id in enumerate(scenario_ids.tolist()):
+            scenario_id = int(scenario_id)
+            if scenario_id <= 0:
+                continue
+            scenario_key = f"{scenario_id:06d}"
+            final_path = result_dir / f"{scenario_key}.json"
+            if self.eval_per_episode_skip_existing and final_path.exists():
+                continue
+
+            row = {
+                "scenario_id": scenario_key,
+                "num_trials": 1,
+                "num_success": int(float(successes[idx].item()) >= 0.5),
+                "success_rate": float(float(successes[idx].item()) >= 0.5),
+                "rank": int(self._rank),
+                "stage_id": int(stage_id),
+            }
+            if returns is not None:
+                row["return"] = float(returns.reshape(-1)[idx].item())
+            if episode_lens is not None:
+                row["episode_len"] = float(episode_lens.reshape(-1)[idx].item())
+            if env_ids is not None:
+                row["env_id"] = int(env_ids.reshape(-1)[idx].item())
+            if episode_ids is not None:
+                row["episode_id"] = int(episode_ids.reshape(-1)[idx].item())
+            if worker_ranks is not None:
+                row["worker_rank"] = int(worker_ranks.reshape(-1)[idx].item())
+
+            tmp_path = final_path.with_suffix(".json.tmp")
+            tmp_path.write_text(
+                json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n",
+                encoding="utf-8",
+            )
+            tmp_path.replace(final_path)
 
     def _build_chunk_final_obs(self, obs_list, infos_list):
         """Build per-env terminal observations for a whole chunk.
@@ -873,6 +940,50 @@ class EnvWorker(Worker):
             else:
                 env_metrics[key].append(value)
 
+    def _write_curriculum_scenario_stats(self, env_metrics: dict[str, torch.Tensor]):
+        try:
+            curriculum_cfg = self.cfg.env.train.init_params.scenario_reset.get(
+                "curriculum", {}
+            )
+        except Exception:
+            curriculum_cfg = {}
+        diagnostics_cfg = curriculum_cfg.get("diagnostics", {}) if curriculum_cfg else {}
+        if not bool(diagnostics_cfg.get("write_scenario_stats", False)):
+            return
+        if "scenario_id" not in env_metrics or "success_once" not in env_metrics:
+            return
+
+        scenario_ids = env_metrics["scenario_id"].reshape(-1).to(torch.int64)
+        successes = env_metrics["success_once"].reshape(-1).float()
+        valid = scenario_ids >= 0
+        if not valid.any():
+            return
+
+        stats = {}
+        for scenario_id, success in zip(
+            scenario_ids[valid].tolist(), successes[valid].tolist()
+        ):
+            key = f"{int(scenario_id):06d}"
+            item = stats.setdefault(key, {"episode_count": 0, "success_count": 0})
+            item["episode_count"] += 1
+            item["success_count"] += int(success >= 0.5)
+
+        log_root = Path(str(self.cfg.runner.logger.log_path))
+        output_dir = log_root / "worker_logs"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / f"curriculum_scenario_stats_rank_{self._rank}.jsonl"
+        record = {
+            "local_step": int(self._curriculum_diag_step),
+            "rank": int(self._rank),
+            "stats": [
+                {"scenario_id": scenario_id, **values}
+                for scenario_id, values in sorted(stats.items())
+            ],
+        }
+        with output_file.open("a", encoding="utf-8") as fp:
+            fp.write(json.dumps(record, ensure_ascii=True) + "\n")
+        self._curriculum_diag_step += 1
+
     def store_last_obs_and_intervened_info(self, env_output_list: list[EnvOutput]):
         self.last_obs_list = [env_output.obs for env_output in env_output_list]
         self.last_intervened_info_list = [
@@ -1044,6 +1155,8 @@ class EnvWorker(Worker):
         for key, value in env_metrics.items():
             env_metrics[key] = torch.cat(value, dim=0).contiguous().cpu()
 
+        self._write_curriculum_scenario_stats(env_metrics)
+
         return env_metrics
 
     @Worker.timer("interact")
@@ -1067,6 +1180,67 @@ class EnvWorker(Worker):
                 env.offload()
 
         return env_metrics
+
+
+    def set_scenario_curriculum_stage(self, stage_index: int):
+        states = []
+        if self.only_eval:
+            return {"rank": self._rank, "states": states}
+        for env in self.env_list:
+            if hasattr(env, "set_scenario_curriculum_stage"):
+                states.append(env.set_scenario_curriculum_stage(stage_index))
+            else:
+                states.append(
+                    {"enabled": False, "reason": "scenario_curriculum_not_supported"}
+                )
+        self.log_info(
+            f"Updated scenario curriculum stage to {stage_index}: {states}"
+        )
+        return {"rank": self._rank, "states": states}
+
+    def set_scenario_curriculum_progress(self, stage_index: int, stage_step: int):
+        states = []
+        if self.only_eval:
+            return {"rank": self._rank, "states": states}
+        for env in self.env_list:
+            if hasattr(env, "set_scenario_curriculum_progress"):
+                states.append(
+                    env.set_scenario_curriculum_progress(stage_index, stage_step)
+                )
+            else:
+                states.append(
+                    {"enabled": False, "reason": "scenario_curriculum_not_supported"}
+                )
+        return {"rank": self._rank, "states": states}
+
+    def get_eval_trajectory_record_counts(self):
+        stage_counts = []
+        aggregate = {
+            "enabled": False,
+            "success": 0,
+            "fail": 0,
+            "skipped_success": 0,
+            "skipped_fail": 0,
+        }
+        for stage_id, env in enumerate(self.eval_env_list):
+            if hasattr(env, "get_trajectory_record_counts"):
+                counts = env.get_trajectory_record_counts()
+            else:
+                counts = {"enabled": False, "success": 0, "fail": 0}
+            counts = dict(counts)
+            counts["stage_id"] = stage_id
+            stage_counts.append(counts)
+            aggregate["enabled"] = aggregate["enabled"] or bool(
+                counts.get("enabled", False)
+            )
+            for key in ("success", "fail", "skipped_success", "skipped_fail"):
+                aggregate[key] = max(aggregate[key], int(counts.get(key, 0)))
+
+        return {
+            "rank": self._rank,
+            "aggregate": aggregate,
+            "stages": stage_counts,
+        }
 
     def evaluate(self, input_channel: Channel, rollout_channel: Channel):
         eval_metrics = defaultdict(list)

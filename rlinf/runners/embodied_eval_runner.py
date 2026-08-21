@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import typing
 
+import torch
 from rlinf.scheduler import Channel
 from rlinf.scheduler import WorkerGroupFuncResult as Handle
 from rlinf.utils.distributed import ScopedTimer
@@ -52,6 +54,92 @@ class EmbodiedEvalRunner:
 
         self.logger = get_logger()
 
+    def _concat_raw_eval_metrics(self, eval_metrics_list):
+        raw_eval_metrics = {}
+        for eval_metrics in eval_metrics_list:
+            for key, value in eval_metrics.items():
+                if isinstance(value, torch.Tensor):
+                    raw_eval_metrics.setdefault(key, []).append(value.detach().cpu())
+
+        for key, shards in raw_eval_metrics.items():
+            raw_eval_metrics[key] = torch.cat(shards, dim=0).contiguous()
+
+        return raw_eval_metrics
+
+    def _save_eval_metrics(self, raw_eval_metrics, eval_metrics):
+        log_path = self.cfg.runner.logger.log_path
+        os.makedirs(log_path, exist_ok=True)
+        save_path = os.path.join(log_path, "eval_metrics.pt")
+        if self.cfg.env.eval.get("debug_init_cube_positions", False):
+            self.logger.info(
+                f"Raw eval metric keys: {sorted(raw_eval_metrics.keys())}"
+            )
+            if "init_cube_positions" in raw_eval_metrics:
+                self.logger.info(
+                    "init_cube_positions shape: "
+                    f"{tuple(raw_eval_metrics['init_cube_positions'].shape)}"
+                )
+                self.logger.info(
+                    "init_cube_positions sample: "
+                    f"{raw_eval_metrics['init_cube_positions'][:2].tolist()}"
+                )
+            else:
+                self.logger.info("init_cube_positions is missing from raw eval metrics")
+        torch.save(
+            {
+                "raw_metrics": raw_eval_metrics,
+                "aggregated_metrics": eval_metrics,
+            },
+            save_path,
+        )
+        self.logger.info(f"Saved eval metrics to {save_path}")
+
+    def _trajectory_record_cfg(self):
+        return self.cfg.env.eval.get("trajectory_record_cfg", None)
+
+    def _trajectory_record_enabled(self):
+        cfg = self._trajectory_record_cfg()
+        return cfg is not None and bool(getattr(cfg, "enabled", False))
+
+    def _trajectory_record_stop_enabled(self):
+        cfg = self._trajectory_record_cfg()
+        return (
+            self._trajectory_record_enabled()
+            and bool(getattr(cfg, "stop_when_targets_met", False))
+        )
+
+    def _trajectory_targets(self):
+        cfg = self._trajectory_record_cfg()
+        return (
+            int(getattr(cfg, "target_success", 1000)),
+            int(getattr(cfg, "target_fail", 1000)),
+        )
+
+    def _get_trajectory_record_counts(self):
+        counts_list = self.env.get_eval_trajectory_record_counts().wait()
+        aggregate = {
+            "enabled": False,
+            "success": 0,
+            "fail": 0,
+            "skipped_success": 0,
+            "skipped_fail": 0,
+        }
+        for item in counts_list:
+            worker_counts = item.get("aggregate", {}) if isinstance(item, dict) else {}
+            aggregate["enabled"] = aggregate["enabled"] or bool(
+                worker_counts.get("enabled", False)
+            )
+            for key in ("success", "fail", "skipped_success", "skipped_fail"):
+                aggregate[key] = max(aggregate[key], int(worker_counts.get(key, 0)))
+        return aggregate
+
+    def _trajectory_targets_met(self, counts):
+        target_success, target_fail = self._trajectory_targets()
+        return (
+            int(counts.get("success", 0)) >= target_success
+            and int(counts.get("fail", 0)) >= target_fail
+        )
+
     def init_workers(self):
         rollout_handle = self.rollout.init_worker()
         env_handle = self.env.init_worker()
@@ -71,13 +159,42 @@ class EmbodiedEvalRunner:
         env_results = env_handle.wait()
         rollout_handle.wait()
         eval_metrics_list = [results for results in env_results if results is not None]
+        raw_eval_metrics = self._concat_raw_eval_metrics(eval_metrics_list)
         eval_metrics = compute_evaluate_metrics(eval_metrics_list)
+        self._save_eval_metrics(raw_eval_metrics, eval_metrics)
         return eval_metrics
 
     def run(self):
-        eval_metrics = self.evaluate()
-        eval_metrics = {f"eval/{k}": v for k, v in eval_metrics.items()}
-        self.logger.info(eval_metrics)
-        self.metric_logger.log(step=0, data=eval_metrics)
+        max_rounds = 1
+        if self._trajectory_record_stop_enabled():
+            cfg = self._trajectory_record_cfg()
+            max_rounds = int(getattr(cfg, "max_eval_rounds", 5000))
+
+        for round_idx in range(max_rounds):
+            eval_metrics = self.evaluate()
+            eval_metrics = {f"eval/{k}": v for k, v in eval_metrics.items()}
+            self.logger.info(eval_metrics)
+            self.metric_logger.log(step=round_idx, data=eval_metrics)
+
+            if not self._trajectory_record_stop_enabled():
+                break
+
+            counts = self._get_trajectory_record_counts()
+            target_success, target_fail = self._trajectory_targets()
+            self.logger.info(
+                "Eval trajectory recorder counts after round "
+                f"{round_idx}: {counts}, targets: "
+                f"success={target_success}, fail={target_fail}"
+            )
+            if self._trajectory_targets_met(counts):
+                break
+        else:
+            counts = self._get_trajectory_record_counts()
+            target_success, target_fail = self._trajectory_targets()
+            raise RuntimeError(
+                "Eval trajectory recorder did not reach requested quotas "
+                f"within {max_rounds} rounds: counts={counts}, "
+                f"targets success={target_success}, fail={target_fail}"
+            )
 
         self.metric_logger.finish()

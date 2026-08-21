@@ -30,18 +30,22 @@ runner:
 
   only_eval: False
   val_check_interval: -1
-  save_interval: 100
+  save_interval: 40 #100
 
   resume_dir: null # Optional: path to a saved checkpoint directory, such as 'checkpoints/global_step_10'. If not None, it will be used to resume training.
   ckpt_path: null  # Optional: path to a .pt checkpoint. If not None, it will be loaded after the model is instantiated (for evaluation).
 
 algorithm:
+  init_emb_dir: null # /path/to/init_emb.npz | Make sure the shape of this .npz is (1408,)
+  init_emb_threshold: 0
+  curriculum_delta: 2.5
+  emb_buffer_dir: null # /path/to/all_init_emb_buffer
   normalize_advantages: True
   kl_penalty: kl # how to estimate kl divergence: kl or kl_penalty
   group_size: 1
   reward_coef: 1.0
   rollout_epoch: 2
-  eval_rollout_epoch: 1
+  eval_rollout_epoch: 20
 
   reward_type: chunk_level
   logprob_type: chunk_level
@@ -93,6 +97,7 @@ env:
     seed: 42
 
   eval:
+    debug_init_cube_positions: True
     total_num_envs: 32
     max_episode_steps: 450
     max_steps_per_rollout_epoch: 450
@@ -112,7 +117,7 @@ rollout:
   pipeline_stage_num: 1
 
   model:
-    model_path: "/path/to/model/RLinf-Pi05-SFT"
+    model_path: "/inspire/hdd/global_user/gongjingjing-25039/syfei/torch/hub/RLinf-pi05-SFT-Stack-cube"
     precision: ${actor.model.precision}
 
 actor:
@@ -124,7 +129,7 @@ actor:
   enable_offload: False
 
   model:
-    model_path: "/path/to/model/RLinf-Pi05-SFT"
+    model_path: "/inspire/hdd/global_user/gongjingjing-25039/syfei/torch/hub/RLinf-pi05-SFT-Stack-cube"
     model_type: "openpi"
     action_dim: 7
     num_action_chunks: 5

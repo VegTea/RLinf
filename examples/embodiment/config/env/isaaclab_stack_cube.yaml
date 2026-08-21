@@ -18,6 +18,13 @@ video_cfg:
   fps: 20
   video_base_dir: ${runner.logger.log_path}/video/train
 
+reset_snapshot_cfg:
+  enabled: false
+  output_dir: ${runner.logger.log_path}/reset_snapshots
+  save_table_png: true
+  save_wrist_png: false
+  save_metadata: true
+
 init_params:
   id: "Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-Rewarded-v0"
   num_envs: null
@@ -29,3 +36,24 @@ init_params:
   wrist_cam:
     height: 256
     width: 256
+  scenario_reset:
+    enabled: false
+    # scenario_reset 负责 table_asset、cube pose 和可选 table_cam pose。
+    # mode 可选：sequential 按 jsonl 顺序循环，random 按 batch 随机抽取，by_id 固定 ids，external 按 A/B 组采样。
+    mode: sequential
+    scenario_file: /inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl/RLinf/examples/embodiment/config/env/isaaclab_stack_cube.jsonl
+    loop: true
+    fixed_ids: []
+    external:
+      group_a_ids: []
+      group_b_ids: []
+      ratio_a: 0.8
+  grid_reset:
+    enabled: false
+    traverse_asset_idx: 1
+    x_range: [0.2, 0.8]
+    y_range: [-0.15, 0.15]
+    num_x: 21
+    num_y: 21
+    z: 0.0203
+    yaw: 0.0

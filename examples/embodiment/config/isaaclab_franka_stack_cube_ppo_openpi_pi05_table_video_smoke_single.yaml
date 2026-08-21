@@ -1,0 +1,20 @@
+defaults:
+  - isaaclab_franka_stack_cube_ppo_openpi_pi05_table_nearest100
+  - _self_
+
+cluster:
+  component_placement:
+    "actor,env,rollout": "0"
+
+env:
+  eval:
+    total_num_envs: 1
+    video_cfg:
+      save_video: true
+      video_base_dir: ${runner.logger.log_path}/video/eval
+
+runner:
+  val_check_interval: 1
+
+algorithm:
+  eval_rollout_epoch: 10

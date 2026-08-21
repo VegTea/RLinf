@@ -87,6 +87,9 @@ class MultiStepRolloutWorker(Worker):
         self.version = 0
         self.finished_episodes = None
 
+        self.emb_threshold = None
+        self.init_emb = None
+
     def init_worker(self):
         rollout_model_config = copy.deepcopy(self.cfg.actor.model)
         with open_dict(rollout_model_config):
@@ -687,3 +690,9 @@ class MultiStepRolloutWorker(Worker):
             )
         if hasattr(self.hf_model, "set_global_step"):
             self.hf_model.set_global_step(global_step)
+
+    def set_global_threshold(self, emb_threshold):
+        self.emb_threshold = emb_threshold
+
+    def set_global_emb(self, init_emb):
+        self.init_emb = init_emb

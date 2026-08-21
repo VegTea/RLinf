@@ -1,8 +1,15 @@
 #! /bin/bash
 
+export PYTHONWARNINGS="ignore::FutureWarning"
+# source /inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl/RLinf/isaac_sim/setup_conda_env.sh
+
 export EMBODIED_PATH="$( cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export REPO_PATH=$(dirname $(dirname "$EMBODIED_PATH"))
 export SRC_FILE="${EMBODIED_PATH}/eval_embodied_agent.py"
+
+export NVIDIA_DRIVER_CAPABILITIES=all
+export VK_DRIVER_FILES=/etc/vulkan/icd.d/nvidia_icd.json
+export VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json
 
 export MUJOCO_GL="osmesa"
 export PYOPENGL_PLATFORM="osmesa"
@@ -16,7 +23,9 @@ export OMNIGIBSON_KEY_PATH=${OMNIGIBSON_KEY_PATH:-$OMNIGIBSON_DATA_PATH/omnigibs
 export OMNIGIBSON_ASSET_PATH=${OMNIGIBSON_ASSET_PATH:-$OMNIGIBSON_DATA_PATH/omnigibson-robot-assets/}
 export OMNIGIBSON_HEADLESS=${OMNIGIBSON_HEADLESS:-1}
 # Base path to Isaac Sim, only required when running the behavior experiment.
-export ISAAC_PATH=${ISAAC_PATH:-/path/to/isaac-sim}
+# export ISAAC_PATH=${ISAAC_PATH:-/path/to/isaac-sim}
+export ISAAC_PATH=${ISAAC_PATH:-/inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl/RLinf/isaac_sim}
+source "${ISAAC_PATH}/setup_conda_env.sh"
 export EXP_PATH=${EXP_PATH:-$ISAAC_PATH/apps}
 export CARB_APP_PATH=${CARB_APP_PATH:-$ISAAC_PATH/kit}
 
@@ -29,13 +38,14 @@ export PYTHONPATH=${DREAMZERO_PATH}:$PYTHONPATH
 export HYDRA_FULL_ERROR=1
 
 if [ -z "$1" ]; then
-    CONFIG_NAME="maniskill_ppo_openvlaoft"
+    CONFIG_NAME="isaaclab_franka_stack_cube_ppo_openpi_pi05"
 else
     CONFIG_NAME=$1
 fi
 
 # NOTE: Set the active robot platform (required for correct action dimension and normalization), supported platforms are LIBERO, ALOHA, BRIDGE, default is LIBERO
 ROBOT_PLATFORM=${2:-${ROBOT_PLATFORM:-"LIBERO"}}
+EXTRA_ARGS=("${@:3}")
 
 export ROBOT_PLATFORM
 
@@ -56,6 +66,13 @@ echo "Using ROBOT_PLATFORM=$ROBOT_PLATFORM"
 LOG_DIR="${REPO_PATH}/logs/$(date +'%Y%m%d-%H:%M:%S')" #/$(date +'%Y%m%d-%H:%M:%S')"
 MEGA_LOG_FILE="${LOG_DIR}/eval_embodiment.log"
 mkdir -p "${LOG_DIR}"
-CMD="python ${SRC_FILE} --config-path ${EMBODIED_PATH}/config/ --config-name ${CONFIG_NAME} runner.logger.log_path=${LOG_DIR}"
-echo ${CMD}
-${CMD} 2>&1 | tee ${MEGA_LOG_FILE}
+CMD=(
+    python "${SRC_FILE}"
+    --config-path "${EMBODIED_PATH}/config/"
+    --config-name "${CONFIG_NAME}"
+    "runner.logger.log_path=${LOG_DIR}"
+    "${EXTRA_ARGS[@]}"
+)
+printf '%q ' "${CMD[@]}"
+echo
+"${CMD[@]}" 2>&1 | tee "${MEGA_LOG_FILE}"

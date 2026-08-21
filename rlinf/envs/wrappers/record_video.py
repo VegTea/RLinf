@@ -457,3 +457,18 @@ class RecordVideo(gym.Wrapper):
     def update_reset_state_ids(self):
         if hasattr(self.env, "update_reset_state_ids"):
             self.env.update_reset_state_ids()
+
+    def set_scenario_curriculum_stage(self, stage_index):
+        if hasattr(self.env, "set_scenario_curriculum_stage"):
+            return self.env.set_scenario_curriculum_stage(stage_index)
+        return {"enabled": False, "reason": "scenario_curriculum_not_supported"}
+
+    def get_scenario_curriculum_state(self):
+        if hasattr(self.env, "get_scenario_curriculum_state"):
+            return self.env.get_scenario_curriculum_state()
+        return {"enabled": False, "reason": "scenario_curriculum_not_supported"}
+
+    def get_trajectory_record_counts(self):
+        if hasattr(self.env, "get_trajectory_record_counts"):
+            return self.env.get_trajectory_record_counts()
+        return {"enabled": False, "success": 0, "fail": 0}

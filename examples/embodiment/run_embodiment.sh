@@ -1,8 +1,15 @@
 #! /bin/bash
+set -o pipefail
+
+export PYTHONWARNINGS="ignore::FutureWarning"
 
 export EMBODIED_PATH="$( cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export REPO_PATH=$(dirname $(dirname "$EMBODIED_PATH"))
 export SRC_FILE="${EMBODIED_PATH}/train_embodied_agent.py"
+
+export NVIDIA_DRIVER_CAPABILITIES=all
+export VK_DRIVER_FILES=/etc/vulkan/icd.d/nvidia_icd.json
+export VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json
 
 export MUJOCO_GL="egl"
 export PYOPENGL_PLATFORM="egl"
@@ -18,13 +25,16 @@ export OMNIGIBSON_DATASET_PATH=${OMNIGIBSON_DATASET_PATH:-$OMNIGIBSON_DATA_PATH/
 export OMNIGIBSON_KEY_PATH=${OMNIGIBSON_KEY_PATH:-$OMNIGIBSON_DATA_PATH/omnigibson.key}
 export OMNIGIBSON_ASSET_PATH=${OMNIGIBSON_ASSET_PATH:-$OMNIGIBSON_DATA_PATH/omnigibson-robot-assets/}
 export OMNIGIBSON_HEADLESS=${OMNIGIBSON_HEADLESS:-1}
-# Base path to Isaac Sim, only required when running the behavior experiment.
-export ISAAC_PATH=${ISAAC_PATH:-/path/to/isaac-sim}
+# Base path to the bundled Isaac Sim distribution.
+export ISAAC_PATH=${ISAAC_PATH:-${REPO_PATH}/isaac_sim}
 export EXP_PATH=${EXP_PATH:-$ISAAC_PATH/apps}
 export CARB_APP_PATH=${CARB_APP_PATH:-$ISAAC_PATH/kit}
+if [ -f "${ISAAC_PATH}/setup_python_env.sh" ]; then
+    source "${ISAAC_PATH}/setup_python_env.sh"
+fi
 
 if [ -z "$1" ]; then
-    CONFIG_NAME="maniskill_ppo_openvlaoft"
+    CONFIG_NAME="isaaclab_franka_stack_cube_ppo_openpi_pi05"
 else
     CONFIG_NAME=$1
 fi
@@ -49,9 +59,41 @@ fi
 echo "Using ROBOT_PLATFORM=$ROBOT_PLATFORM"
 
 echo "Using Python at $(which python)"
-LOG_DIR="${REPO_PATH}/logs/$(date +'%Y%m%d-%H:%M:%S')-${CONFIG_NAME}" #/$(date +'%Y%m%d-%H:%M:%S')"
+LOG_NAME_TAG="${LOG_NAME_TAG:-${CONFIG_NAME}}"
+LOG_DIR="${REPO_PATH}/logs/$(date +'%Y%m%d-%H:%M:%S')-${LOG_NAME_TAG}" #/$(date +'%Y%m%d-%H:%M:%S')"
 MEGA_LOG_FILE="${LOG_DIR}/run_embodiment.log"
 mkdir -p "${LOG_DIR}"
-CMD="python ${SRC_FILE} --config-path ${EMBODIED_PATH}/config/ --config-name ${CONFIG_NAME} runner.logger.log_path=${LOG_DIR}"
-echo ${CMD} > ${MEGA_LOG_FILE}
-${CMD} 2>&1 | tee -a ${MEGA_LOG_FILE}
+CMD=(
+    python "${SRC_FILE}"
+    --config-path "${EMBODIED_PATH}/config/"
+    --config-name "${CONFIG_NAME}"
+    "runner.logger.log_path=${LOG_DIR}"
+    "${@:3}"
+)
+printf -v CMD_DISPLAY '%q ' "${CMD[@]}"
+{
+    echo "===== RLinf launch parameters ====="
+    echo "timestamp_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+    echo "hostname=$(hostname)"
+    echo "pwd=$(pwd)"
+    echo "config_name=${CONFIG_NAME}"
+    echo "config_path=${EMBODIED_PATH}/config/${CONFIG_NAME}.yaml"
+    echo "log_name_tag=${LOG_NAME_TAG}"
+    echo "robot_platform=${ROBOT_PLATFORM}"
+    echo "libero_type=${LIBERO_TYPE}"
+    echo "python=$(which python)"
+    echo "repo_path=${REPO_PATH}"
+    echo "log_dir=${LOG_DIR}"
+    echo "cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-<unset>}"
+    echo "nvidia_visible_devices=${NVIDIA_VISIBLE_DEVICES:-<unset>}"
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        echo "nvidia_smi_gpu_count=$(nvidia-smi -L | wc -l)"
+        nvidia-smi -L | sed 's/^/gpu: /'
+    else
+        echo "nvidia_smi_gpu_count=<nvidia-smi not found>"
+    fi
+    echo "cmd=${CMD_DISPLAY}"
+    echo "===== end launch parameters ====="
+} > "${MEGA_LOG_FILE}"
+"${CMD[@]}" 2>&1 | tee -a "${MEGA_LOG_FILE}"
+exit ${PIPESTATUS[0]}

@@ -1,0 +1,126 @@
+env:
+  env_type: isaaclab
+  total_num_envs: 1
+  auto_reset: false
+  ignore_terminations: false
+  use_rel_reward: true
+  seed: 42
+  group_size: 1
+  reward_coef: 1.0
+  use_fixed_reset_state_ids: false
+  max_steps_per_rollout_epoch: 450
+  max_episode_steps: 450
+
+  video_cfg:
+    save_video: false
+    info_on_video: false
+    fps: 20
+    video_base_dir: ${replay.output_dir}/video
+
+  reset_snapshot_cfg:
+    enabled: false
+    output_dir: ${replay.output_dir}/reset_snapshots
+    save_table_png: true
+    save_wrist_png: false
+    save_metadata: true
+
+  trajectory_record_cfg:
+    enabled: false
+    output_dir: ${replay.output_dir}/unused_trajectory_record
+    target_success: 0
+    target_fail: 0
+
+  seed_offset: 0
+  init_params:
+    id: "Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-Rewarded-v0"
+    num_envs: 1
+    max_episode_steps: ${env.max_episode_steps}
+    task_description: "Stack the red block on the blue block, then stack the green block on the red block."
+    table_cam:
+      height: 256
+      width: 256
+    wrist_cam:
+      height: 256
+      width: 256
+    replay_cameras:
+      enabled: true
+      names: [replay_cam_0, replay_cam_1]
+      height: 256
+      width: 256
+    disable_table_visual_randomization: false
+    disable_robot_visual_randomization: true
+    scenario_reset:
+      enabled: false
+      mode: sequential
+      scenario_file: /inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl/RLinf/examples/embodiment/config/env/isaaclab_stack_cube.jsonl
+      loop: true
+      fixed_ids: []
+      external:
+        group_a_ids: []
+        group_b_ids: []
+        ratio_a: 0.8
+    cube_pose_random_reset:
+      enabled: false
+      min_separation: 0.1
+      max_sample_tries: 5000
+      pose_range:
+        x: [0.2, 0.66]
+        y: [-0.15, 0.15]
+        z: [0.0203, 0.0203]
+        roll: [0.0, 0.0]
+        pitch: [0.0, 0.0]
+        yaw: [-3.141592653589793, 3.141592653589793]
+    grid_reset:
+      enabled: false
+      traverse_asset_idx: 1
+      x_range: [0.2, 0.8]
+      y_range: [-0.15, 0.15]
+      num_x: 21
+      num_y: 21
+      z: 0.0203
+      yaw: 0.0
+
+replay:
+  output_dir: /inspire/hdd/global_user/gongjingjing-25039/xpyu/project/datasets/isaaclab_replay
+  fps: 20
+  camera: table
+  mode: state
+  num_visual_variants: 1
+  visual_scenario_file: null
+  visual_samples_per_traj: 1
+  visual_scenario_seed: ${env.seed}
+  drop_suspect_reset_tail: true
+  reset_jump_threshold: 0.1
+  h5:
+    enabled: false
+    output_dir: /inspire/hdd/global_user/gongjingjing-25039/xpyu/project/datasets/isaaclab_replay_h5
+    num_external_views: 2
+    use_registered_external_cameras: true
+    registered_external_camera_names: [replay_cam_0, replay_cam_1]
+    camera_names:
+      wrist: wrist
+      external: [cam_high, cam_low]
+    view_scenario_file: /inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl/RLinf/rlinf/assets_isaaclab/all_setting/combined_with_distance/Isaaclab_all_scenarios_10025_with_distance.jsonl
+    view_selection: first_n
+    view_seed: ${env.seed}
+    light_scenario_file: /inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl/RLinf/rlinf/assets_isaaclab/all_setting/light_setting_50.jsonl
+    light_selection: random
+    light_seed: ${env.seed}
+    fixed_light_id: null
+    action_type: eef_delta
+    depth_dtype: float16
+    compression: lzf
+    compression_opts: null
+    write_video: false
+    # Optional fallback when automatic material/color parsing cannot determine
+    # which Isaac cube is red, blue, or green. Keep null to require auto parsing.
+    cube_color_map: null
+    goal_detection:
+      enabled: true
+      lift_z_delta: 0.035
+      stack_xy_threshold: 0.035
+      stack_z_tolerance: 0.025
+      eef_cube_distance: 0.06
+      stable_window: 3
+      max_velocity: 0.02
+      cube_size: 0.04

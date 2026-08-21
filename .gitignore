@@ -18,5 +18,10 @@ outputs/*
 .docs-venv
 uv.lock
 rlinf/envs/maniskill/assets
+rlinf/assets_isaaclab/
+rlinf/assets.zip
 PKG-INFO
 *.egg-info/
+isaac_sim/*
+core
+core.*
