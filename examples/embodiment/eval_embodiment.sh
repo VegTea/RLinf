@@ -22,9 +22,8 @@ export OMNIGIBSON_DATASET_PATH=${OMNIGIBSON_DATASET_PATH:-$OMNIGIBSON_DATA_PATH/
 export OMNIGIBSON_KEY_PATH=${OMNIGIBSON_KEY_PATH:-$OMNIGIBSON_DATA_PATH/omnigibson.key}
 export OMNIGIBSON_ASSET_PATH=${OMNIGIBSON_ASSET_PATH:-$OMNIGIBSON_DATA_PATH/omnigibson-robot-assets/}
 export OMNIGIBSON_HEADLESS=${OMNIGIBSON_HEADLESS:-1}
-# Base path to Isaac Sim, only required when running the behavior experiment.
-# export ISAAC_PATH=${ISAAC_PATH:-/path/to/isaac-sim}
-export ISAAC_PATH=${ISAAC_PATH:-/inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl/RLinf/isaac_sim}
+# Base path to the bundled Isaac Sim distribution.
+export ISAAC_PATH=${ISAAC_PATH:-${REPO_PATH}/isaac_sim}
 source "${ISAAC_PATH}/setup_conda_env.sh"
 export EXP_PATH=${EXP_PATH:-$ISAAC_PATH/apps}
 export CARB_APP_PATH=${CARB_APP_PATH:-$ISAAC_PATH/kit}

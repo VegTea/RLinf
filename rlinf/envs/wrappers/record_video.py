@@ -74,8 +74,20 @@ class RecordVideo(gym.Wrapper):
 
         self.video_cfg = video_cfg
         self.render_images: list[np.ndarray] = []
-        self.video_cnt = 0
         self._num_envs = getattr(env, "num_envs", 1)
+        self.per_env_videos = bool(video_cfg.get("per_env_videos", False))
+        self.wait_for_video_writes = bool(
+            video_cfg.get("wait_for_video_writes", False)
+        )
+        self.camera_keys = video_cfg.get("camera_keys", None)
+        if self.camera_keys is not None:
+            self.camera_keys = list(self.camera_keys)
+            if not self.camera_keys:
+                self.camera_keys = None
+        self.per_env_render_images: list[list[np.ndarray]] = [
+            [] for _ in range(self._num_envs)
+        ]
+        self.video_cnt = 0
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._save_futures: list[Future] = []
 
@@ -128,6 +140,14 @@ class RecordVideo(gym.Wrapper):
             return []
 
         if isinstance(obs, dict):
+            if self.camera_keys is not None:
+                camera_frames = []
+                for key in self.camera_keys:
+                    if key not in obs or obs[key] is None:
+                        warnings.warn(f"Configured video camera key is missing: {key}")
+                        return []
+                    camera_frames.append(self._split_image_source(obs[key]))
+                return self._combine_camera_frames(camera_frames)
             image_src = self._get_image_from_dict(obs)
             if image_src is None:
                 return []
@@ -139,12 +159,7 @@ class RecordVideo(gym.Wrapper):
             if isinstance(obs[0], dict):
                 frames = []
                 for item in obs:
-                    image_src = self._get_image_from_dict(item)
-                    if image_src is None:
-                        continue
-                    batches = self._split_image_source(image_src)
-                    if batches:
-                        frames.append(batches[0])
+                    frames.extend(self._extract_frame_batches(item))
                 return frames
             images = []
             for item in obs:
@@ -159,6 +174,34 @@ class RecordVideo(gym.Wrapper):
         if isinstance(obs, np.ndarray):
             return self._split_image_source(obs)
         return []
+
+    def _combine_camera_frames(
+        self, camera_frames: list[list[list[np.ndarray]]]
+    ) -> list[list[np.ndarray]]:
+        """Concatenate configured camera views horizontally per environment."""
+        if not camera_frames:
+            return []
+        frame_count = len(camera_frames[0])
+        if any(len(frames) != frame_count for frames in camera_frames):
+            warnings.warn("Configured video cameras have different frame counts")
+            return []
+
+        combined_frames = []
+        for time_idx in range(frame_count):
+            views_at_time = [frames[time_idx] for frames in camera_frames]
+            env_count = len(views_at_time[0])
+            if any(len(view) != env_count for view in views_at_time):
+                warnings.warn("Configured video cameras have different batch sizes")
+                return []
+            combined_frames.append(
+                [
+                    np.concatenate(
+                        [view[env_id] for view in views_at_time], axis=1
+                    )
+                    for env_id in range(env_count)
+                ]
+            )
+        return combined_frames
 
     def _split_image_source(self, image_src: Any) -> list[list[np.ndarray]]:
         """Normalize common image tensor layouts into frame batches."""
@@ -324,7 +367,15 @@ class RecordVideo(gym.Wrapper):
                 )
                 for env_id, img in enumerate(images)
             ]
-        if len(images) > 1:
+        if self.per_env_videos:
+            if len(images) != self._num_envs:
+                warnings.warn(
+                    "Video batch size does not match the configured number of environments"
+                )
+                return
+            for env_id, image in enumerate(images):
+                self.per_env_render_images[env_id].append(image)
+        elif len(images) > 1:
             nrows = int(np.sqrt(len(images)))
             full_image = tile_images(images, nrows=nrows)
             self.render_images.append(full_image)
@@ -409,7 +460,11 @@ class RecordVideo(gym.Wrapper):
 
     def flush_video(self, video_sub_dir: Optional[str] = None):
         """Write buffered frames to an MP4 file (async)."""
-        if not self.render_images:
+        if self.per_env_videos:
+            has_frames = any(self.per_env_render_images)
+        else:
+            has_frames = bool(self.render_images)
+        if not has_frames:
             return
 
         output_dir = os.path.join(
@@ -419,11 +474,22 @@ class RecordVideo(gym.Wrapper):
             output_dir = os.path.join(output_dir, f"{video_sub_dir}")
 
         os.makedirs(output_dir, exist_ok=True)
-        mp4_path = os.path.join(output_dir, f"{self.video_cnt}.mp4")
-        frames = list(self.render_images)
-        self.render_images = []
+        if self.per_env_videos:
+            for env_id, frames in enumerate(self.per_env_render_images):
+                if frames:
+                    mp4_path = os.path.join(
+                        output_dir, f"{self.video_cnt}_env_{env_id:03d}.mp4"
+                    )
+                    self._submit_save(list(frames), mp4_path)
+            self.per_env_render_images = [[] for _ in range(self._num_envs)]
+        else:
+            mp4_path = os.path.join(output_dir, f"{self.video_cnt}.mp4")
+            frames = list(self.render_images)
+            self.render_images = []
+            self._submit_save(frames, mp4_path)
         self.video_cnt += 1
-        self._submit_save(frames, mp4_path)
+        if self.wait_for_video_writes:
+            self._wait_for_pending_saves()
 
     def _submit_save(self, frames: list[np.ndarray], mp4_path: str) -> None:
         """Submit a background job to save the video."""
@@ -447,6 +513,12 @@ class RecordVideo(gym.Wrapper):
     def _prune_futures(self) -> None:
         """Remove finished futures to avoid unbounded growth."""
         self._save_futures = [f for f in self._save_futures if not f.done()]
+
+    def _wait_for_pending_saves(self) -> None:
+        """Wait for submitted videos before the owning worker can exit."""
+        for future in self._save_futures:
+            future.result()
+        self._save_futures = []
 
     def close(self):
         """Wait for pending video writes before closing."""

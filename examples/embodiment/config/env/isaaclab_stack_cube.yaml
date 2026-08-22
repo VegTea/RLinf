@@ -17,6 +17,11 @@ video_cfg:
   info_on_video: True
   fps: 20
   video_base_dir: ${runner.logger.log_path}/video/train
+  # Save one video per environment and concatenate the external/table and wrist
+  # camera views horizontally. This is enabled for the 32-trajectory eval run.
+  per_env_videos: False
+  camera_keys: null
+  wait_for_video_writes: False
 
 reset_snapshot_cfg:
   enabled: false
