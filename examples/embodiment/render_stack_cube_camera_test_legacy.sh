@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="/inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl"
+ROOT_DIR="/inspire/hdd/global_user/czxs24230043/RLinf-IsaacLab-Diverse-PPO"
 REPO_PATH="${ROOT_DIR}/RLinf"
 ISAAC_SETUP="${REPO_PATH}/isaac_sim/setup_conda_env.sh"
 
