@@ -76,9 +76,7 @@ class RecordVideo(gym.Wrapper):
         self.render_images: list[np.ndarray] = []
         self._num_envs = getattr(env, "num_envs", 1)
         self.per_env_videos = bool(video_cfg.get("per_env_videos", False))
-        self.wait_for_video_writes = bool(
-            video_cfg.get("wait_for_video_writes", False)
-        )
+        self.wait_for_video_writes = bool(video_cfg.get("wait_for_video_writes", False))
         self.camera_keys = video_cfg.get("camera_keys", None)
         if self.camera_keys is not None:
             self.camera_keys = list(self.camera_keys)
@@ -195,9 +193,7 @@ class RecordVideo(gym.Wrapper):
                 return []
             combined_frames.append(
                 [
-                    np.concatenate(
-                        [view[env_id] for view in views_at_time], axis=1
-                    )
+                    np.concatenate([view[env_id] for view in views_at_time], axis=1)
                     for env_id in range(env_count)
                 ]
             )
@@ -490,6 +486,33 @@ class RecordVideo(gym.Wrapper):
         self.video_cnt += 1
         if self.wait_for_video_writes:
             self._wait_for_pending_saves()
+
+    def get_pending_video_path(
+        self, env_id: int, video_sub_dir: Optional[str] = None
+    ) -> Optional[str]:
+        """Return the path used by the next per-environment video flush.
+
+        Args:
+            env_id: Local environment index in this wrapper.
+            video_sub_dir: Optional subdirectory, matching ``flush_video``.
+
+        Returns:
+            Absolute MP4 path, or ``None`` when per-environment recording is
+            disabled.
+        """
+        if not self.per_env_videos:
+            return None
+        if not 0 <= env_id < self._num_envs:
+            raise IndexError(f"env_id {env_id} is outside [0, {self._num_envs})")
+
+        output_dir = os.path.join(
+            self.video_cfg.video_base_dir, f"seed_{self.env.seed}"
+        )
+        if video_sub_dir is not None:
+            output_dir = os.path.join(output_dir, video_sub_dir)
+        return os.path.abspath(
+            os.path.join(output_dir, f"{self.video_cnt}_env_{env_id:03d}.mp4")
+        )
 
     def _submit_save(self, frames: list[np.ndarray], mp4_path: str) -> None:
         """Submit a background job to save the video."""

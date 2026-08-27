@@ -493,6 +493,11 @@ class EnvWorker(Worker):
             elif "episode" in infos:
                 for key in infos["episode"]:
                     env_info[key] = infos["episode"][key][newly_done].cpu()
+            env_info["stage_id"] = torch.full(
+                (int(newly_done.sum().item()),),
+                int(stage_id),
+                dtype=torch.int64,
+            )
             self._write_eval_per_episode_results(env_info, stage_id)
 
         env_output = EnvOutput(
@@ -501,9 +506,7 @@ class EnvWorker(Worker):
         )
         return env_output, env_info
 
-    def _write_eval_per_episode_results(
-        self, env_info: dict[str, Any], stage_id: int
-    ):
+    def _write_eval_per_episode_results(self, env_info: dict[str, Any], stage_id: int):
         if self.eval_per_episode_result_dir is None:
             return
         if "scenario_id" not in env_info or "success_once" not in env_info:
@@ -519,34 +522,72 @@ class EnvWorker(Worker):
         env_ids = env_info.get("env_id", None)
         episode_ids = env_info.get("episode_id", None)
         worker_ranks = env_info.get("worker_rank", None)
+        file_naming = self.cfg.env.eval.get(
+            "per_episode_result_file_naming", "scenario"
+        )
+        if file_naming not in ("scenario", "env_episode"):
+            raise ValueError(
+                "env.eval.per_episode_result_file_naming must be either "
+                f"'scenario' or 'env_episode', got {file_naming!r}"
+            )
 
         for idx, scenario_id in enumerate(scenario_ids.tolist()):
             scenario_id = int(scenario_id)
-            if scenario_id <= 0:
+            if scenario_id < 0:
                 continue
             scenario_key = f"{scenario_id:06d}"
-            final_path = result_dir / f"{scenario_key}.json"
+            env_id = (
+                int(env_ids.reshape(-1)[idx].item()) if env_ids is not None else idx
+            )
+            episode_id = (
+                int(episode_ids.reshape(-1)[idx].item())
+                if episode_ids is not None
+                else 0
+            )
+            worker_rank = (
+                int(worker_ranks.reshape(-1)[idx].item())
+                if worker_ranks is not None
+                else int(self._rank)
+            )
+            if file_naming == "env_episode":
+                file_name = (
+                    f"worker_{worker_rank:03d}_stage_{stage_id:02d}_"
+                    f"env_{env_id:03d}_episode_{episode_id:06d}.json"
+                )
+            else:
+                file_name = f"{scenario_key}.json"
+            final_path = result_dir / file_name
             if self.eval_per_episode_skip_existing and final_path.exists():
                 continue
 
+            policy_success = bool(float(successes[idx].item()) >= 0.5)
             row = {
                 "scenario_id": scenario_key,
+                "setting": {"scenario_id": scenario_key},
+                "policy_success": policy_success,
                 "num_trials": 1,
-                "num_success": int(float(successes[idx].item()) >= 0.5),
-                "success_rate": float(float(successes[idx].item()) >= 0.5),
+                "num_success": int(policy_success),
+                "success_rate": float(policy_success),
                 "rank": int(self._rank),
                 "stage_id": int(stage_id),
+                "env_id": env_id,
+                "episode_id": episode_id,
+                "worker_rank": worker_rank,
             }
+            checkpoint_path = self.cfg.runner.get("ckpt_path", None)
+            if checkpoint_path:
+                row["checkpoint_path"] = str(checkpoint_path)
+            else:
+                row["policy_source"] = str(self.cfg.rollout.model.model_path)
             if returns is not None:
                 row["return"] = float(returns.reshape(-1)[idx].item())
             if episode_lens is not None:
                 row["episode_len"] = float(episode_lens.reshape(-1)[idx].item())
-            if env_ids is not None:
-                row["env_id"] = int(env_ids.reshape(-1)[idx].item())
-            if episode_ids is not None:
-                row["episode_id"] = int(episode_ids.reshape(-1)[idx].item())
-            if worker_ranks is not None:
-                row["worker_rank"] = int(worker_ranks.reshape(-1)[idx].item())
+            eval_env = self.eval_env_list[stage_id]
+            if isinstance(eval_env, RecordVideo):
+                video_path = eval_env.get_pending_video_path(env_id)
+                if video_path is not None:
+                    row["video_path"] = video_path
 
             tmp_path = final_path.with_suffix(".json.tmp")
             tmp_path.write_text(
@@ -947,7 +988,9 @@ class EnvWorker(Worker):
             )
         except Exception:
             curriculum_cfg = {}
-        diagnostics_cfg = curriculum_cfg.get("diagnostics", {}) if curriculum_cfg else {}
+        diagnostics_cfg = (
+            curriculum_cfg.get("diagnostics", {}) if curriculum_cfg else {}
+        )
         if not bool(diagnostics_cfg.get("write_scenario_stats", False)):
             return
         if "scenario_id" not in env_metrics or "success_once" not in env_metrics:
@@ -1181,7 +1224,6 @@ class EnvWorker(Worker):
 
         return env_metrics
 
-
     def set_scenario_curriculum_stage(self, stage_index: int):
         states = []
         if self.only_eval:
@@ -1193,9 +1235,7 @@ class EnvWorker(Worker):
                 states.append(
                     {"enabled": False, "reason": "scenario_curriculum_not_supported"}
                 )
-        self.log_info(
-            f"Updated scenario curriculum stage to {stage_index}: {states}"
-        )
+        self.log_info(f"Updated scenario curriculum stage to {stage_index}: {states}")
         return {"rank": self._rank, "states": states}
 
     def set_scenario_curriculum_progress(self, stage_index: int, stage_step: int):

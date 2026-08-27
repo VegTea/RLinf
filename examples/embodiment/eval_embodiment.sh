@@ -24,9 +24,16 @@ export OMNIGIBSON_ASSET_PATH=${OMNIGIBSON_ASSET_PATH:-$OMNIGIBSON_DATA_PATH/omni
 export OMNIGIBSON_HEADLESS=${OMNIGIBSON_HEADLESS:-1}
 # Base path to the bundled Isaac Sim distribution.
 export ISAAC_PATH=${ISAAC_PATH:-${REPO_PATH}/isaac_sim}
-source "${ISAAC_PATH}/setup_conda_env.sh"
-export EXP_PATH=${EXP_PATH:-$ISAAC_PATH/apps}
-export CARB_APP_PATH=${CARB_APP_PATH:-$ISAAC_PATH/kit}
+if [ -f "${ISAAC_PATH}/setup_conda_env.sh" ]; then
+    source "${ISAAC_PATH}/setup_conda_env.sh"
+    export EXP_PATH=${EXP_PATH:-$ISAAC_PATH/apps}
+    export CARB_APP_PATH=${CARB_APP_PATH:-$ISAAC_PATH/kit}
+else
+    # Isaac Sim installed as a Python package bootstraps its own paths. Do
+    # not leak the legacy checkout path into Isaac Sim 6 workers: an invalid
+    # ISAAC_PATH prevents isaacsim from exposing SimulationApp.
+    unset ISAAC_PATH EXP_PATH CARB_APP_PATH
+fi
 
 export ROBOTWIN_PATH=${ROBOTWIN_PATH:-"/path/to/RoboTwin"}
 export PYTHONPATH=${REPO_PATH}:${ROBOTWIN_PATH}:$PYTHONPATH
@@ -62,7 +69,7 @@ fi
 
 echo "Using ROBOT_PLATFORM=$ROBOT_PLATFORM"
 
-LOG_DIR="${REPO_PATH}/logs/$(date +'%Y%m%d-%H:%M:%S')" #/$(date +'%Y%m%d-%H:%M:%S')"
+LOG_DIR="${LOG_DIR:-${REPO_PATH}/logs/$(date +'%Y%m%d-%H:%M:%S')}"
 MEGA_LOG_FILE="${LOG_DIR}/eval_embodiment.log"
 mkdir -p "${LOG_DIR}"
 CMD=(
