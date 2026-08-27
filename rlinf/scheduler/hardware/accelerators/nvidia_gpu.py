@@ -115,6 +115,10 @@ class NvidiaGPUManager(AcceleratorManager):
 
         # NCCL env vars
         env_vars["NCCL_CUMEM_ENABLE"] = "0"
+        # NVLS initialization is broken on some H100 + NCCL 2.26/driver
+        # combinations (CUDA error 401 in transport/nvls.cc). Keep it
+        # disabled by default, while allowing a deliberate override.
+        env_vars["NCCL_NVLS_ENABLE"] = os.environ.get("NCCL_NVLS_ENABLE", "0")
         env_vars["TORCH_NCCL_AVOID_RECORD_STREAMS"] = "1"
         if os.environ.get("NCCL_CUMEM_ENABLE", "0") != "0":
             warnings.warn(

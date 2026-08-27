@@ -16,6 +16,7 @@ USE_MIRRORS=0
 GITHUB_PREFIX=""
 NO_ROOT=0
 NO_INSTALL_RLINF_CMD="--no-install-project"
+SKIP_SIMULATOR=0
 SUPPORTED_TARGETS=("embodied" "agentic" "docs")
 SUPPORTED_MODELS=("openvla" "openvla-oft" "openpi" "gr00t" "dexbotic" "starvla" "lingbotvla" "dreamzero")
 SUPPORTED_ENVS=("behavior" "maniskill_libero" "metaworld" "calvin" "isaaclab" "robocasa" "franka" "frankasim" "robotwin" "habitat" "opensora" "wan" "xsquare_turtle2" "liberopro" "liberoplus" "roboverse" "embodichain")
@@ -41,6 +42,7 @@ Common options:
     --use-mirror           Use mirrors for faster downloads.
     --no-root              Avoid system dependency installation for non-root users. Only use this if you are certain system dependencies are already installed.
     --install-rlinf        Install RLinf itself into the python.
+    --skip-simulator       For --model openpi --env isaaclab, install only the model-side stack.
 EOF
 }
 
@@ -90,6 +92,10 @@ parse_args() {
                 ;;
             --install-rlinf)
                 NO_INSTALL_RLINF_CMD=""
+                shift
+                ;;
+            --skip-simulator)
+                SKIP_SIMULATOR=1
                 shift
                 ;;
             --*)
@@ -496,8 +502,10 @@ install_openpi_model() {
             create_and_sync_venv
             install_common_embodied_deps
             uv pip install git+${GITHUB_PREFIX}https://github.com/RLinf/openpi
-            install_isaaclab_env
-            # Torch is modified in Isaac Lab, install flash-attn afterwards
+            if [ "$SKIP_SIMULATOR" -eq 0 ]; then
+                install_isaaclab_env
+            fi
+            # Install flash-attn after the final model-side Torch selection.
             install_flash_attn
             uv pip install numpydantic==1.7.0 pydantic==2.11.7 numpy==1.26.0
             ;;

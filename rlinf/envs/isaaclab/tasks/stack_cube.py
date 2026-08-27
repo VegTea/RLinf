@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from copy import deepcopy
+
 import gymnasium as gym
 import torch
 from omegaconf import OmegaConf
-from copy import deepcopy
 
 from rlinf.envs.isaaclab.utils import quat2axisangle_torch
 
@@ -55,9 +56,69 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
             sim_app = AppLauncher(headless=True, enable_cameras=True).app
             from isaaclab_tasks.utils import load_cfg_from_registry
 
+            from rlinf.envs.isaaclab.rewarded_stack_cfg import (
+                register_rewarded_stack_env,
+            )
+
+            register_rewarded_stack_env()
+
             isaac_env_cfg = load_cfg_from_registry(
                 self.isaaclab_env_id, "env_cfg_entry_point"
             )
+            # Isaac Lab's stock Stack Cube config uses Nucleus URIs.  For the
+            # split installation, point the robot and block assets at the local
+            # Isaac Sim asset root so a complete Nucleus checkout is unnecessary.
+            local_asset_root = os.environ.get("ISAACSIM_ASSET_ROOT")
+            if local_asset_root and not local_asset_root.startswith(
+                ("omniverse://", "http://", "https://")
+            ):
+                from pathlib import Path
+
+                local_asset_root = Path(local_asset_root)
+                # Asset ZIPs use ``Assets/Isaac/6.0/Isaac/...`` while some
+                # extracted installations expose the contents directly under
+                # ``Assets/Isaac/6.0``. Probe both layouts per asset.
+
+                def _asset_path(*relative_paths):
+                    candidates = [local_asset_root / rel for rel in relative_paths]
+                    for candidate in candidates:
+                        if candidate.is_file():
+                            return candidate
+                    return candidates[0]
+
+                robot_usd = _asset_path(
+                    "IsaacLab/Robots/FrankaEmika/panda_instanceable.usd",
+                    "Isaac/IsaacLab/Robots/FrankaEmika/panda_instanceable.usd",
+                )
+                block_paths = {
+                    "cube_1": _asset_path(
+                        "Isaac/Props/Blocks/blue_block.usd",
+                        "Props/Blocks/blue_block.usd",
+                    ),
+                    "cube_2": _asset_path(
+                        "Isaac/Props/Blocks/red_block.usd",
+                        "Props/Blocks/red_block.usd",
+                    ),
+                    "cube_3": _asset_path(
+                        "Isaac/Props/Blocks/green_block.usd",
+                        "Props/Blocks/green_block.usd",
+                    ),
+                }
+                missing_assets = [
+                    str(path)
+                    for path in [robot_usd, *block_paths.values()]
+                    if not path.is_file()
+                ]
+                if missing_assets:
+                    raise FileNotFoundError(
+                        "Local Isaac Sim asset root is missing Stack Cube assets: "
+                        + ", ".join(missing_assets)
+                    )
+                isaac_env_cfg.scene.robot.spawn.usd_path = str(robot_usd)
+                for cube_name, cube_path in block_paths.items():
+                    getattr(isaac_env_cfg.scene, cube_name).spawn.usd_path = str(
+                        cube_path
+                    )
             # Seed the IsaacLab env config before construction so the simulator's
             # initial reset path is deterministic and doesn't warn about an unset seed.
             isaac_env_cfg.seed = self.seed
@@ -74,9 +135,7 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                         "init_params.isaaclab_episode_length_steps must be positive, "
                         f"got {isaaclab_episode_length_steps}"
                     )
-                control_dt = float(isaac_env_cfg.sim.dt) * int(
-                    isaac_env_cfg.decimation
-                )
+                control_dt = float(isaac_env_cfg.sim.dt) * int(isaac_env_cfg.decimation)
                 isaac_env_cfg.episode_length_s = (
                     isaaclab_episode_length_steps * control_dt
                 )
@@ -90,6 +149,26 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
             isaac_env_cfg.scene.wrist_cam.width = self.cfg.init_params.wrist_cam.width
             isaac_env_cfg.scene.table_cam.height = self.cfg.init_params.table_cam.height
             isaac_env_cfg.scene.table_cam.width = self.cfg.init_params.table_cam.width
+            from isaaclab.managers import ObservationTermCfg as ObsTerm
+            from isaaclab.managers import SceneEntityCfg
+            from isaaclab_tasks.manager_based.manipulation.stack import mdp
+
+            isaac_env_cfg.observations.policy.table_cam_depth = ObsTerm(
+                func=mdp.image,
+                params={
+                    "sensor_cfg": SceneEntityCfg("table_cam"),
+                    "data_type": "distance_to_image_plane",
+                    "normalize": False,
+                },
+            )
+            isaac_env_cfg.observations.policy.wrist_cam_depth = ObsTerm(
+                func=mdp.image,
+                params={
+                    "sensor_cfg": SceneEntityCfg("wrist_cam"),
+                    "data_type": "distance_to_image_plane",
+                    "normalize": False,
+                },
+            )
             table_asset = getattr(self.cfg.init_params, "table_asset", None)
             if table_asset:
                 from rlinf.envs.isaaclab.scenario_loader import resolve_table_asset_path
@@ -107,7 +186,9 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                 from isaaclab_tasks.manager_based.manipulation.stack import mdp
 
                 camera_names = list(
-                    getattr(replay_camera_cfg, "names", ["replay_cam_0", "replay_cam_1"])
+                    getattr(
+                        replay_camera_cfg, "names", ["replay_cam_0", "replay_cam_1"]
+                    )
                 )
                 height = int(
                     getattr(
@@ -159,12 +240,11 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                 scenario_reset_cfg, "enabled", False
             ):
                 from isaaclab.managers import SceneEntityCfg
-                from isaaclab_tasks.manager_based.manipulation.stack.mdp import (
-                    franka_stack_events,
-                )
+
+                from rlinf.envs.isaaclab import custom_events
 
                 isaac_env_cfg.events.randomize_cube_positions.func = (
-                    franka_stack_events.apply_scenario_reset
+                    custom_events.apply_scenario_reset
                 )
                 curriculum_cfg = getattr(scenario_reset_cfg, "curriculum", None)
                 curriculum = (
@@ -199,7 +279,7 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                 }
                 if hasattr(isaac_env_cfg.events, "randomize_table_visual_material"):
                     isaac_env_cfg.events.randomize_table_visual_material.func = (
-                        franka_stack_events.noop_event
+                        custom_events.noop_event
                     )
                     isaac_env_cfg.events.randomize_table_visual_material.params = {}
 
@@ -208,12 +288,10 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                 "disable_table_visual_randomization",
                 False,
             ) and hasattr(isaac_env_cfg.events, "randomize_table_visual_material"):
-                from isaaclab_tasks.manager_based.manipulation.stack.mdp import (
-                    franka_stack_events,
-                )
+                from rlinf.envs.isaaclab import custom_events
 
                 isaac_env_cfg.events.randomize_table_visual_material.func = (
-                    franka_stack_events.noop_event
+                    custom_events.noop_event
                 )
                 isaac_env_cfg.events.randomize_table_visual_material.params = {}
 
@@ -222,12 +300,10 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                 "disable_robot_visual_randomization",
                 False,
             ) and hasattr(isaac_env_cfg.events, "randomize_robot_arm_visual_texture"):
-                from isaaclab_tasks.manager_based.manipulation.stack.mdp import (
-                    franka_stack_events,
-                )
+                from rlinf.envs.isaaclab import custom_events
 
                 isaac_env_cfg.events.randomize_robot_arm_visual_texture.func = (
-                    franka_stack_events.noop_event
+                    custom_events.noop_event
                 )
                 isaac_env_cfg.events.randomize_robot_arm_visual_texture.params = {}
 
@@ -237,10 +313,12 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                 None,
             )
             if (
-                scenario_reset_cfg is None
-                or not getattr(scenario_reset_cfg, "enabled", False)
-            ) and cube_pose_random_reset_cfg is not None and getattr(
-                cube_pose_random_reset_cfg, "enabled", False
+                (
+                    scenario_reset_cfg is None
+                    or not getattr(scenario_reset_cfg, "enabled", False)
+                )
+                and cube_pose_random_reset_cfg is not None
+                and getattr(cube_pose_random_reset_cfg, "enabled", False)
             ):
                 from isaaclab.managers import SceneEntityCfg
                 from isaaclab_tasks.manager_based.manipulation.stack.mdp import (
@@ -274,19 +352,23 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
 
             grid_reset_cfg = getattr(self.cfg.init_params, "grid_reset", None)
             if (
-                scenario_reset_cfg is None
-                or not getattr(scenario_reset_cfg, "enabled", False)
-            ) and (
-                cube_pose_random_reset_cfg is None
-                or not getattr(cube_pose_random_reset_cfg, "enabled", False)
-            ) and grid_reset_cfg is not None and getattr(grid_reset_cfg, "enabled", False):
-                from isaaclab.managers import SceneEntityCfg
-                from isaaclab_tasks.manager_based.manipulation.stack.mdp import (
-                    franka_stack_events,
+                (
+                    scenario_reset_cfg is None
+                    or not getattr(scenario_reset_cfg, "enabled", False)
                 )
+                and (
+                    cube_pose_random_reset_cfg is None
+                    or not getattr(cube_pose_random_reset_cfg, "enabled", False)
+                )
+                and grid_reset_cfg is not None
+                and getattr(grid_reset_cfg, "enabled", False)
+            ):
+                from isaaclab.managers import SceneEntityCfg
+
+                from rlinf.envs.isaaclab import custom_events
 
                 isaac_env_cfg.events.randomize_cube_positions.func = (
-                    franka_stack_events.grid_traverse_object_pose
+                    custom_events.grid_traverse_object_pose
                 )
                 isaac_env_cfg.events.randomize_cube_positions.params = {
                     "asset_cfgs": [

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from multiprocessing.connection import Connection
 import queue
+from multiprocessing.connection import Connection
 
 import torch
 import torch.multiprocessing as mp
@@ -87,12 +87,20 @@ def _torch_worker(
             elif cube_positions is not None and cube_orientations is not None:
                 positions_tensor = _to_tensor(cube_positions).reshape(-1)
                 orientations_tensor = _to_tensor(cube_orientations).reshape(-1)
-                position = positions_tensor[cube_idx * 3 : cube_idx * 3 + 3].reshape(1, 3)
-                orientation = orientations_tensor[cube_idx * 4 : cube_idx * 4 + 4].reshape(1, 4)
+                position = positions_tensor[cube_idx * 3 : cube_idx * 3 + 3].reshape(
+                    1, 3
+                )
+                orientation = orientations_tensor[
+                    cube_idx * 4 : cube_idx * 4 + 4
+                ].reshape(1, 4)
             else:
                 continue
-            cube.write_root_pose_to_sim(torch.cat([position, orientation], dim=-1), env_ids=env_ids)
-            cube.write_root_velocity_to_sim(torch.zeros(1, 6, device=device), env_ids=env_ids)
+            cube.write_root_pose_to_sim(
+                torch.cat([position, orientation], dim=-1), env_ids=env_ids
+            )
+            cube.write_root_velocity_to_sim(
+                torch.zeros(1, 6, device=device), env_ids=env_ids
+            )
 
         isaac_env.scene.write_data_to_sim()
         isaac_env.sim.render()
@@ -119,7 +127,10 @@ def _torch_worker(
 
     def _reference_matches_asset(reference_path: str, target_path: str) -> bool:
         try:
-            return reference_path == target_path or str(reference_path).split("/")[-1] == str(target_path).split("/")[-1]
+            return (
+                reference_path == target_path
+                or str(reference_path).split("/")[-1] == str(target_path).split("/")[-1]
+            )
         except Exception:
             return False
 
@@ -130,10 +141,13 @@ def _torch_worker(
 
         table_asset_name = record.get("table_asset")
         if table_asset_name:
-            from isaacsim.core.utils.stage import get_current_stage
+            from isaaclab.sim.utils.stage import get_current_stage
+
             from rlinf.envs.isaaclab.scenario_loader import resolve_table_asset_path
 
-            table_asset_path = resolve_table_asset_path(table_asset_name, must_exist=True)
+            table_asset_path = resolve_table_asset_path(
+                table_asset_name, must_exist=True
+            )
             table_asset = isaac_env.scene["table"]
             table_prim_path = str(table_asset.prim_paths[env_id])
             stage = get_current_stage()
@@ -163,7 +177,8 @@ def _torch_worker(
         if "table_cam_pos" in record and "table_cam_rot" in record:
             table_cam = isaac_env.scene["table_cam"]
             local_pos = _to_tensor(record["table_cam_pos"]).reshape(3)
-            ros_quat = _to_tensor(record["table_cam_rot"]).reshape(4)
+            ros_quat_wxyz = _to_tensor(record["table_cam_rot"]).reshape(4)
+            ros_quat = ros_quat_wxyz[[1, 2, 3, 0]]
             world_pos = local_pos + isaac_env.scene.env_origins[env_id, 0:3]
             table_cam.set_world_poses(
                 positions=world_pos.unsqueeze(0),
@@ -177,7 +192,8 @@ def _torch_worker(
                 table_cam.reset([env_id])
             applied["table_cam"] = {
                 "requested_local_pos": [float(v) for v in record["table_cam_pos"]],
-                "requested_ros_quat": [float(v) for v in record["table_cam_rot"]],
+                "requested_ros_quat_wxyz": [float(v) for v in record["table_cam_rot"]],
+                "applied_ros_quat_xyzw": ros_quat.detach().cpu().tolist(),
                 "applied_world_pos": world_pos.detach().cpu().tolist(),
                 "applied_world_ros_quat": ros_quat.detach().cpu().tolist(),
             }
@@ -189,10 +205,13 @@ def _torch_worker(
         env_id = int(payload.get("env_id", 0))
         record = dict(payload.get("record", {}))
         if "table_cam_pos" not in record or "table_cam_rot" not in record:
-            raise KeyError("table camera record requires table_cam_pos and table_cam_rot")
+            raise KeyError(
+                "table camera record requires table_cam_pos and table_cam_rot"
+            )
         table_cam = isaac_env.scene["table_cam"]
         local_pos = _to_tensor(record["table_cam_pos"]).reshape(3)
-        ros_quat = _to_tensor(record["table_cam_rot"]).reshape(4)
+        ros_quat_wxyz = _to_tensor(record["table_cam_rot"]).reshape(4)
+        ros_quat = ros_quat_wxyz[[1, 2, 3, 0]]
         world_pos = local_pos + isaac_env.scene.env_origins[env_id, 0:3]
         table_cam.set_world_poses(
             positions=world_pos.unsqueeze(0),
@@ -209,7 +228,8 @@ def _torch_worker(
             "env_id": env_id,
             "scenario_id": record.get("id"),
             "requested_local_pos": [float(v) for v in record["table_cam_pos"]],
-            "requested_ros_quat": [float(v) for v in record["table_cam_rot"]],
+            "requested_ros_quat_wxyz": [float(v) for v in record["table_cam_rot"]],
+            "applied_ros_quat_xyzw": ros_quat.detach().cpu().tolist(),
             "applied_world_pos": world_pos.detach().cpu().tolist(),
             "applied_world_ros_quat": ros_quat.detach().cpu().tolist(),
         }
@@ -232,9 +252,12 @@ def _torch_worker(
             try:
                 camera = isaac_env.scene[camera_name]
             except KeyError as exc:
-                raise KeyError(f"Replay camera is not registered in scene: {camera_name}") from exc
+                raise KeyError(
+                    f"Replay camera is not registered in scene: {camera_name}"
+                ) from exc
             local_pos = _to_tensor(record["table_cam_pos"]).reshape(3)
-            ros_quat = _to_tensor(record["table_cam_rot"]).reshape(4)
+            ros_quat_wxyz = _to_tensor(record["table_cam_rot"]).reshape(4)
+            ros_quat = ros_quat_wxyz[[1, 2, 3, 0]]
             world_pos = local_pos + isaac_env.scene.env_origins[env_id, 0:3]
             camera.set_world_poses(
                 positions=world_pos.unsqueeze(0),
@@ -252,7 +275,10 @@ def _torch_worker(
                     "env_id": env_id,
                     "scenario_id": record.get("id"),
                     "requested_local_pos": [float(v) for v in record["table_cam_pos"]],
-                    "requested_ros_quat": [float(v) for v in record["table_cam_rot"]],
+                    "requested_ros_quat_wxyz": [
+                        float(v) for v in record["table_cam_rot"]
+                    ],
+                    "applied_ros_quat_xyzw": ros_quat.detach().cpu().tolist(),
                     "applied_world_pos": world_pos.detach().cpu().tolist(),
                     "applied_world_ros_quat": ros_quat.detach().cpu().tolist(),
                 }
@@ -263,7 +289,7 @@ def _torch_worker(
         color_to_cube: dict = {}
         cube_info: dict = {}
         try:
-            from isaacsim.core.utils.stage import get_current_stage
+            from isaaclab.sim.utils.stage import get_current_stage
         except Exception as exc:
             return {
                 "color_to_cube": color_to_cube,
@@ -288,7 +314,9 @@ def _torch_worker(
                 color = _find_prim_diffuse_color(prim)
                 if color is not None:
                     info["diffuse_color"] = [float(v) for v in color]
-                    candidates.append((cube_name, torch.tensor(color[:3], device=device)))
+                    candidates.append(
+                        (cube_name, torch.tensor(color[:3], device=device))
+                    )
             except Exception as exc:
                 info["error"] = str(exc)
             cube_info[cube_name] = info
@@ -321,11 +349,15 @@ def _torch_worker(
         intensity = float(light_cfg["intensity"])
         color = tuple(float(value) for value in light_cfg["color"])
         if len(color) != 3:
-            raise ValueError(f"light.color must have 3 values for id={record.get('id')}")
+            raise ValueError(
+                f"light.color must have 3 values for id={record.get('id')}"
+            )
         texture = _resolve_replay_light_texture(light_cfg)
 
         light = isaac_env.scene["light"]
-        light_prim = light.prims[env_id] if len(light.prims) > env_id else light.prims[0]
+        light_prim = (
+            light.prims[env_id] if len(light.prims) > env_id else light.prims[0]
+        )
         light_prim.GetAttribute("inputs:intensity").Set(intensity)
         light_prim.GetAttribute("inputs:color").Set(color)
         light_prim.GetAttribute("inputs:texture:file").Set(texture)
@@ -341,9 +373,15 @@ def _torch_worker(
             "requested_texture": light_cfg.get("texture", ""),
             "resolved_texture": texture,
             "light_prim_path": str(light_prim.GetPath()),
-            "actual_intensity": _jsonable_attr_value(_attr_value(light_prim, "inputs:intensity")),
-            "actual_color": _jsonable_attr_value(_attr_value(light_prim, "inputs:color")),
-            "actual_texture": _jsonable_attr_value(_attr_value(light_prim, "inputs:texture:file")),
+            "actual_intensity": _jsonable_attr_value(
+                _attr_value(light_prim, "inputs:intensity")
+            ),
+            "actual_color": _jsonable_attr_value(
+                _attr_value(light_prim, "inputs:color")
+            ),
+            "actual_texture": _jsonable_attr_value(
+                _attr_value(light_prim, "inputs:texture:file")
+            ),
         }
 
     def _resolve_replay_light_texture(light_cfg):
@@ -374,15 +412,42 @@ def _torch_worker(
         isaac_root = assets_root / "Isaac"
         return {
             "default": "",
-            "abandoned_parking": str(nvidia_root / "Assets/AnimGraph/Worlds/textures/WarehouseInterior2b_4x8k.hdr"),
-            "evening_road": str(nvidia_root / "Assets/AnimGraph/105.0/Worlds/textures/adams_place_bridge_4k.hdr"),
-            "lakeside": str(isaac_root / "Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr"),
-            "autoshop": str(nvidia_root / "Assets/AnimGraph/Worlds/textures/ZetoCG_WarehouseInterior2b.hdr"),
-            "carpentry_shop": str(nvidia_root / "Assets/AnimGraph/Characters/Reallusion/Debra/Props/Stage/B2_2k_256_4k.hdr"),
-            "hospital_room": str(nvidia_root / "Assets/ArchVis/Industrial/Stages/HDRI/CloudyDay_04_04.hdr"),
-            "hotel_room": str(isaac_root / "Environments/Outdoor/Rivermark/dsready_content/nv_core/common_tools/content_tagging/studio_lights/Materials/photo_studio_01_4k.hdr"),
-            "small_empty_house": str(isaac_root / "Environments/Outdoor/Rivermark/dsready_content/nv_core/common_assets/environments/cloudy_sky/SubUSDs/textures/stars_4k.hdr"),
-            "photo_studio": str(isaac_root / "Environments/Outdoor/Rivermark/dsready_content/nv_core/common_tools/content_tagging/studio_lights/Materials/photo_studio_01_4k.hdr"),
+            "abandoned_parking": str(
+                nvidia_root
+                / "Assets/AnimGraph/Worlds/textures/WarehouseInterior2b_4x8k.hdr"
+            ),
+            "evening_road": str(
+                nvidia_root
+                / "Assets/AnimGraph/105.0/Worlds/textures/adams_place_bridge_4k.hdr"
+            ),
+            "lakeside": str(
+                isaac_root
+                / "Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr"
+            ),
+            "autoshop": str(
+                nvidia_root
+                / "Assets/AnimGraph/Worlds/textures/ZetoCG_WarehouseInterior2b.hdr"
+            ),
+            "carpentry_shop": str(
+                nvidia_root
+                / "Assets/AnimGraph/Characters/Reallusion/Debra/Props/Stage/B2_2k_256_4k.hdr"
+            ),
+            "hospital_room": str(
+                nvidia_root
+                / "Assets/ArchVis/Industrial/Stages/HDRI/CloudyDay_04_04.hdr"
+            ),
+            "hotel_room": str(
+                isaac_root
+                / "Environments/Outdoor/Rivermark/dsready_content/nv_core/common_tools/content_tagging/studio_lights/Materials/photo_studio_01_4k.hdr"
+            ),
+            "small_empty_house": str(
+                isaac_root
+                / "Environments/Outdoor/Rivermark/dsready_content/nv_core/common_assets/environments/cloudy_sky/SubUSDs/textures/stars_4k.hdr"
+            ),
+            "photo_studio": str(
+                isaac_root
+                / "Environments/Outdoor/Rivermark/dsready_content/nv_core/common_tools/content_tagging/studio_lights/Materials/photo_studio_01_4k.hdr"
+            ),
         }
 
     def _attr_value(prim, attr_name):
@@ -481,14 +546,24 @@ def _torch_worker(
                 stage_index = child_remote.recv()
                 scheduler = getattr(isaac_env, "_scenario_scheduler", None)
                 if scheduler is None:
-                    child_remote.send({"enabled": False, "reason": "scenario_scheduler_not_initialized"})
+                    child_remote.send(
+                        {
+                            "enabled": False,
+                            "reason": "scenario_scheduler_not_initialized",
+                        }
+                    )
                 else:
                     child_remote.send(scheduler.set_curriculum_stage(stage_index))
             elif cmd == "set_scenario_curriculum_progress":
                 payload = child_remote.recv()
                 scheduler = getattr(isaac_env, "_scenario_scheduler", None)
                 if scheduler is None:
-                    child_remote.send({"enabled": False, "reason": "scenario_scheduler_not_initialized"})
+                    child_remote.send(
+                        {
+                            "enabled": False,
+                            "reason": "scenario_scheduler_not_initialized",
+                        }
+                    )
                 else:
                     child_remote.send(
                         scheduler.set_curriculum_progress(
@@ -499,7 +574,12 @@ def _torch_worker(
             elif cmd == "get_scenario_curriculum_state":
                 scheduler = getattr(isaac_env, "_scenario_scheduler", None)
                 if scheduler is None:
-                    child_remote.send({"enabled": False, "reason": "scenario_scheduler_not_initialized"})
+                    child_remote.send(
+                        {
+                            "enabled": False,
+                            "reason": "scenario_scheduler_not_initialized",
+                        }
+                    )
                 else:
                     child_remote.send(scheduler.get_curriculum_state())
             else:
@@ -620,15 +700,21 @@ class SubProcIsaacLabEnv:
         return self._recv_remote("set_scenario_curriculum_progress")
 
     def get_scenario_curriculum_state(self):
-        self._send_remote("get_scenario_curriculum_state", "get_scenario_curriculum_state")
+        self._send_remote(
+            "get_scenario_curriculum_state", "get_scenario_curriculum_state"
+        )
         return self._recv_remote("get_scenario_curriculum_state")
 
     def replay_set_state_and_get_obs(self, payload: dict):
-        self._send_remote("replay_set_state_and_get_obs", "replay_set_state_and_get_obs", payload)
+        self._send_remote(
+            "replay_set_state_and_get_obs", "replay_set_state_and_get_obs", payload
+        )
         return self._get_obs_result("replay_set_state_and_get_obs")
 
     def replay_apply_visual_scenario(self, payload: dict):
-        self._send_remote("replay_apply_visual_scenario", "replay_apply_visual_scenario", payload)
+        self._send_remote(
+            "replay_apply_visual_scenario", "replay_apply_visual_scenario", payload
+        )
         return self._recv_remote("replay_apply_visual_scenario")
 
     def replay_set_table_camera(self, payload: dict):
@@ -648,5 +734,7 @@ class SubProcIsaacLabEnv:
         return self._recv_remote("replay_get_cube_color_map")
 
     def replay_apply_light_scenario(self, payload: dict):
-        self._send_remote("replay_apply_light_scenario", "replay_apply_light_scenario", payload)
+        self._send_remote(
+            "replay_apply_light_scenario", "replay_apply_light_scenario", payload
+        )
         return self._recv_remote("replay_apply_light_scenario")

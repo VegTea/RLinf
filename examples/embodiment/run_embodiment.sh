@@ -31,6 +31,11 @@ export EXP_PATH=${EXP_PATH:-$ISAAC_PATH/apps}
 export CARB_APP_PATH=${CARB_APP_PATH:-$ISAAC_PATH/kit}
 if [ -f "${ISAAC_PATH}/setup_python_env.sh" ]; then
     source "${ISAAC_PATH}/setup_python_env.sh"
+else
+    # Isaac Sim 6 is installed in .venv-isaacsim6. Keeping a nonexistent
+    # legacy checkout path in worker environments prevents its Python package
+    # from bootstrapping SimulationApp.
+    unset ISAAC_PATH EXP_PATH CARB_APP_PATH
 fi
 
 if [ -z "$1" ]; then

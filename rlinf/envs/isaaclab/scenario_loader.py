@@ -1,9 +1,30 @@
+# Copyright 2025 The RLinf Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
+DEFAULT_SCENARIO_ASSET_ROOT = Path(
+    os.environ.get(
+        "RLINF_SCENARIO_ASSET_ROOT",
+        Path(__file__).resolve().parents[2] / "assets_isaaclab",
+    )
+)
 DEFAULT_TABLE_ASSET_ROOT = (
-    Path(__file__).resolve().parents[2] / "assets_isaaclab" / "SeattleLabTable" / "color_tables"
+    DEFAULT_SCENARIO_ASSET_ROOT / "SeattleLabTable" / "color_tables"
 )
 
 
@@ -61,7 +82,11 @@ def _candidate_table_asset_paths(
     table_asset: str,
     table_asset_root: str | Path | None = None,
 ) -> list[Path]:
-    asset_root = Path(table_asset_root) if table_asset_root is not None else DEFAULT_TABLE_ASSET_ROOT
+    asset_root = (
+        Path(table_asset_root)
+        if table_asset_root is not None
+        else DEFAULT_TABLE_ASSET_ROOT
+    )
     requested_path = Path(table_asset)
 
     candidates: list[Path] = []
@@ -80,7 +105,9 @@ def _candidate_table_asset_paths(
         candidates.append(asset_root / f"{requested_path.name}.usda")
 
     if alternate is not None:
-        candidates.append(alternate if alternate.is_absolute() else asset_root / alternate)
+        candidates.append(
+            alternate if alternate.is_absolute() else asset_root / alternate
+        )
 
     deduped: list[Path] = []
     seen: set[str] = set()
@@ -98,13 +125,17 @@ def resolve_table_asset_path(
     table_asset_root: str | Path | None = None,
     must_exist: bool = False,
 ) -> str:
-    candidates = _candidate_table_asset_paths(table_asset, table_asset_root=table_asset_root)
+    candidates = _candidate_table_asset_paths(
+        table_asset, table_asset_root=table_asset_root
+    )
     for candidate in candidates:
         if candidate.exists():
             return str(candidate)
     if must_exist:
         searched = ", ".join(str(candidate) for candidate in candidates)
-        raise FileNotFoundError(f"Unable to resolve table asset {table_asset!r}. Tried: {searched}")
+        raise FileNotFoundError(
+            f"Unable to resolve table asset {table_asset!r}. Tried: {searched}"
+        )
     return str(candidates[0])
 
 

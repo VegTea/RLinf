@@ -16,7 +16,32 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    actor,env,rollout: all
+    actor:
+      node_group: model
+      placement: all
+    rollout:
+      node_group: model
+      placement: all
+    env:
+      node_group: isaacsim6
+      placement: all
+  node_groups:
+    - label: model
+      node_ranks: 0
+      env_configs:
+        - node_ranks: 0
+          python_interpreter_path: ${oc.env:RLINF_MODEL_PYTHON}
+    - label: isaacsim6
+      node_ranks: 0
+      env_configs:
+        - node_ranks: 0
+          python_interpreter_path: ${oc.env:RLINF_ISAACSIM_PYTHON}
+          env_vars:
+            - REPO_PATH: ${oc.env:REPO_PATH}
+            - PYTHONPATH: ${oc.env:REPO_PATH}
+            - ISAACSIM_ASSET_ROOT: ${oc.env:ISAACSIM_ASSET_ROOT}
+            - RLINF_SCENARIO_ASSET_ROOT: ${oc.env:RLINF_SCENARIO_ASSET_ROOT}
+            - OMNI_KIT_ACCEPT_EULA: "YES"
 
 runner:
   task_type: embodied
@@ -104,7 +129,7 @@ env:
       scenario_reset:
         enabled: true
         mode: random
-        scenario_file: /inspire/hdd/global_user/czxs24230043/RLinf-IsaacLab-Diverse-PPO/RLinf/examples/embodiment/config/env/Isaaclab_nearest100_table_copper.jsonl
+        scenario_file: ${oc.env:REPO_PATH}/examples/embodiment/config/env/Isaaclab_nearest100_table_copper.jsonl
         loop: true
         fixed_ids: []
         external:
@@ -132,7 +157,7 @@ env:
       scenario_reset:
         enabled: true
         mode: random
-        scenario_file: /inspire/hdd/global_user/czxs24230043/RLinf-IsaacLab-Diverse-PPO/RLinf/examples/embodiment/config/env/Isaaclab_nearest100_table_copper.jsonl
+        scenario_file: ${oc.env:REPO_PATH}/examples/embodiment/config/env/Isaaclab_nearest100_table_copper.jsonl
         loop: true
         fixed_ids: []
         external:

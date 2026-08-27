@@ -1,0 +1,1954 @@
+{
+  "destination_root_name": "assets_isaaclab",
+  "file_count": 473,
+  "files": {
+    "Materials/Base/Metals/Aluminum_Anodized/Aluminum_Anodized_BaseColor.png": {
+      "sha256": "d1d042502d7d94bca13cee10c63ab5b3801fb0a46e26d79169e13f5b9c7b5a31",
+      "size": 16903
+    },
+    "Materials/Base/Metals/Aluminum_Anodized/Aluminum_Anodized_H.png": {
+      "sha256": "b3dce1d7e4985d55f4a43f4d77c1ba6cf78fc77b59b6203318cc6579f07fbe14",
+      "size": 934671
+    },
+    "Materials/Base/Metals/Aluminum_Anodized/Aluminum_Anodized_Normal.png": {
+      "sha256": "6dc1cb1b23a9abd766188a85ccbad1a2639d0a9a334f284e359c6c5d4438608e",
+      "size": 3321558
+    },
+    "Materials/Base/Metals/Aluminum_Anodized/Aluminum_Anodized_ORM.png": {
+      "sha256": "768f2dbb4f702a9624b912b431efd1a6a8e0ff3e93744cf54f3866ef8f7986e9",
+      "size": 637843
+    },
+    "Materials/Base/Metals/Aluminum_Cast/Aluminum_Cast_BaseColor.png": {
+      "sha256": "03ab7494d37e1f6551a26894628c5fe03a65b4d85a09ed11337e184852a580b3",
+      "size": 1154931
+    },
+    "Materials/Base/Metals/Aluminum_Cast/Aluminum_Cast_N.png": {
+      "sha256": "812c0161ea14abc581cb35c47b33dc6005c089f8e82dca6cb4dd4832deb0556c",
+      "size": 6557833
+    },
+    "Materials/Base/Metals/Aluminum_Cast/Aluminum_Cast_ORM.png": {
+      "sha256": "571eba5a99da444b681609a722a29914490c6dae45d230dac471a45875211a4c",
+      "size": 4198310
+    },
+    "Materials/Base/Metals/Brass/Brass_BaseColor.png": {
+      "sha256": "5cfc0397b5b4f41dca920ccfda0c4f06763ea457cf292a45aefd415ee5f000fd",
+      "size": 1466378
+    },
+    "Materials/Base/Metals/Brass/Brass_N.png": {
+      "sha256": "d2798f76c92a1f861e5063bf051909afec5356af9ae1003321fa2216a2a8ff7d",
+      "size": 14776302
+    },
+    "Materials/Base/Metals/Brass/Brass_ORM.png": {
+      "sha256": "43fa990cf1b903c757c0df239f65db64b99fe15b1f9d22ce66236e1f9686f255",
+      "size": 8792985
+    },
+    "Materials/Base/Metals/Brushed_Antique_Copper/Brushed_Antique_Copper_BaseColor.png": {
+      "sha256": "1edd40e06e263c9d9732ed65e477d330fe3815b771a7946a7b399467dede5666",
+      "size": 4535768
+    },
+    "Materials/Base/Metals/Brushed_Antique_Copper/Brushed_Antique_Copper_N.png": {
+      "sha256": "7a0b0de62e6a7adcbd48aac10795b4c090fe703c88840a0f45c62361e514243c",
+      "size": 4169362
+    },
+    "Materials/Base/Metals/Brushed_Antique_Copper/Brushed_Antique_Copper_ORM.png": {
+      "sha256": "1df785a7b96bed40de679a76e5f7338a5790f8a0af3ab747cb4fb63a5a2dcd8a",
+      "size": 5827974
+    },
+    "Materials/Base/Metals/Color/01_Rose_Gold_BaseColor.png": {
+      "sha256": "b8a64b7e40efba5fb8501f56d0716e9ca601a7f0c84a0a380fa369ea0e50ba79",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/02_Warm_Bronze_BaseColor.png": {
+      "sha256": "293c9d0126a20263bc01527ba55606355087fc5d27500ee8db1526a295fd4c5a",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/03_Aged_Brass_BaseColor.png": {
+      "sha256": "ef91c4ae97e1036e8081c3721b5f3b2abace173fcef301448725984915c6779f",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/04_Pale_Gold_BaseColor.png": {
+      "sha256": "47dba78a347a5157e6d77320c3b32c0d690745f641c7cf8a84305a0aaf37b224",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/05_Champagne_BaseColor.png": {
+      "sha256": "e7588cea3cc3836b3efef805ded75d501a542abb8157a1f8d5070bead713b111",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/06_Burnt_Orange_BaseColor.png": {
+      "sha256": "b371af807dc8b6562540061af674bcf5c2a40d8922d04578c77b07c65a0e32c1",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/07_Amber_BaseColor.png": {
+      "sha256": "f5bf13dbc2e26900cf32914df65ef0ab129b6fef58c77a7b5821f904016254bd",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/08_Ochre_BaseColor.png": {
+      "sha256": "31475be277d03fdb83f1b5774790717eabc9bde042fd12d9c635bdcb16fc9692",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/09_Olive_Gold_BaseColor.png": {
+      "sha256": "a4dafdf0e8aa7952c703948ea8226f6d84477ddac183af20d3904aaa37e47057",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/10_Moss_Green_BaseColor.png": {
+      "sha256": "45d21f9331d458679460a0cf66de1ff047e74d018e41fe6b6bc7ea5be9887d8e",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/11_Emerald_BaseColor.png": {
+      "sha256": "3c7228f3a04136e95a094bddf5434d5ef7652794a4feaac3ba16b1b16d141317",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/12_Patina_Green_BaseColor.png": {
+      "sha256": "680bfb9e585a8a2793d39863bcb1ddd3745b55e9929391760d82a4e8aeada499",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/13_Teal_BaseColor.png": {
+      "sha256": "082a7fe4e505cc29ecfe63c4a5eada5365cd75c3828c01c9973c0ee07a93569e",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/14_Cyan_BaseColor.png": {
+      "sha256": "a53f08e28174de70bcc7e04840ee90b58b85b3d90f843dd9e681fc1ed46d403f",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/15_Ice_Blue_BaseColor.png": {
+      "sha256": "71d1fe57ff56eda23eb1ea9588f5d1ee20652ed9c335f1503e60b1860bd89a58",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/16_Blue_Steel_BaseColor.png": {
+      "sha256": "abb2e01f75434f3f7bf41c0eb865b0618a24a4e767eb871dd5748efcf9a86771",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/17_Cobalt_BaseColor.png": {
+      "sha256": "28488ebed11ef735cf0721775a451a14b854001a0b72fd38fa419ec07dabac07",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/18_Deep_Blue_BaseColor.png": {
+      "sha256": "c53a2ee49087470af1fffb7fae9d156a53a15792ca7abed68fd2087cb7a7b298",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/19_Indigo_BaseColor.png": {
+      "sha256": "689a1c23bd3d5e97e99f6d7c49b5f89b5bc8c8bb194ebe4a87766ca8d966cdae",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/20_Violet_BaseColor.png": {
+      "sha256": "4767da98d5cbe0017307a97bf2d297e689ab0974585cdd3ebd2045a91b6275d4",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/21_Purple_BaseColor.png": {
+      "sha256": "fb77657ee7f5ab1115f217212d38602f01a467112620e26c87aa20da5688cd64",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/22_Magenta_BaseColor.png": {
+      "sha256": "f4cacf5f92071aef00457c831f885b32ef319d4e68527f1c4e55e57369a72b4d",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/23_Raspberry_BaseColor.png": {
+      "sha256": "b144a370087221472a8206c18a476e0979c77524b9017720c4f950a5669d1941",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/24_Crimson_BaseColor.png": {
+      "sha256": "25ff89e167c8b987567f0e7acfe68ae8e554565acd8cb2ccce2620e4048fb541",
+      "size": 16911
+    },
+    "Materials/Base/Metals/Color/25_Ruby_Red_BaseColor.png": {
+      "sha256": "91a90c82059b2f19a6cb3a9cbe681371610e302ee5a4dff809abc5731d585a04",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/26_Coral_BaseColor.png": {
+      "sha256": "15bab4ebb0d7ffa13156ca6f47f3365b7d074907c6475325428a065f6017ba52",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/27_Salmon_BaseColor.png": {
+      "sha256": "d1612f16cbb9c2401cb01c8500f00818da1a4f7878866ff90138407935d68dde",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/28_Dusty_Pink_BaseColor.png": {
+      "sha256": "c4292dff137134a513357f8d2a3be1d76a35254ed10d1a0ee4f957501a3fb4b0",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/29_Lavender_Gray_BaseColor.png": {
+      "sha256": "86eb9636b4e37bf8229bbc7475797b9a8eed8fc0f8b8d2496c9ec9f52c0c9158",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/30_Slate_BaseColor.png": {
+      "sha256": "777329c93b58546c7f3b8fad2f37abc274d8f602f08729ca960b914efe993ac9",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/31_Gunmetal_BaseColor.png": {
+      "sha256": "24737b391cdc3a27b6a6ccfef277915afe03e2754c2d3246e61d0818d1cce2ee",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/32_Charcoal_BaseColor.png": {
+      "sha256": "59464206512b68da8a28a84d9bc6a2189a7e4c0a55249dfd1516a8abc9856d46",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/33_Blackened_BaseColor.png": {
+      "sha256": "01d63aa580fd15c183e4b1a047c8e088c7bd160e14e198a87c5601cb0b67c83e",
+      "size": 16911
+    },
+    "Materials/Base/Metals/Color/34_Graphite_BaseColor.png": {
+      "sha256": "826b3be339b5af08b77b102e751a6e4cdb5236bf3e2500d1cb8838027c16468a",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/35_Titanium_BaseColor.png": {
+      "sha256": "44129c985969c6297e46c5eed685c9b0132baa6ed116bd8fd65eb6d1212c9886",
+      "size": 16911
+    },
+    "Materials/Base/Metals/Color/36_Soft_Silver_BaseColor.png": {
+      "sha256": "7620ac26ad27f66e6c10d185a8d334a0451731454c3f0482a0b527d73fecf12a",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/37_White_Gold_BaseColor.png": {
+      "sha256": "6146a6aab0939493d5a6e6affd0824b90195716fb222d97ddd917f48e1adc2a6",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/38_Nickel_BaseColor.png": {
+      "sha256": "a5cb2c0eea4d268847ac826eba0fdaaba4f3a4ba62ccf5abe01fb6907f92cceb",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/39_Pewter_BaseColor.png": {
+      "sha256": "f5eeba2626e0d06d7dd33f80fcf47fb95fd7fcbc59228ec9639548736fde6a11",
+      "size": 16911
+    },
+    "Materials/Base/Metals/Color/40_Zinc_BaseColor.png": {
+      "sha256": "43c95581f8e9e2bca6e163f98b8d6f36bd225d005d0f2a523bb7e08e665224d7",
+      "size": 16911
+    },
+    "Materials/Base/Metals/Color/41_Sage_BaseColor.png": {
+      "sha256": "b6b4f1bedd9ba9ed17f1ec9a18cc6a6e8047530aa269941f05118cfbefe9d306",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/42_Forest_BaseColor.png": {
+      "sha256": "793b79b5ab515bb0965c4357c5e2b0e6178f33ba7830c2a2a1682c43ee631f80",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/43_Deep_Teal_BaseColor.png": {
+      "sha256": "5580680fbe62cd6cfc0233c1fc66ce099d527ae5474c876009db24746335f601",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/44_Aqua_Dark_BaseColor.png": {
+      "sha256": "a9449183d9ca86dea6a0d3a90b9d21aa64ec98832500b754016bbdc679fe2d76",
+      "size": 16911
+    },
+    "Materials/Base/Metals/Color/45_Sky_Metal_BaseColor.png": {
+      "sha256": "162b2bdd100130b93e1f53231be00399ac4541a07a44d7278665d0b8d7ae478b",
+      "size": 16912
+    },
+    "Materials/Base/Metals/Color/46_Navy_BaseColor.png": {
+      "sha256": "236ae5c3f86c5a8b34491e3060ca1604353746903ef290e6ce0ac95b0d317e96",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/47_Plum_BaseColor.png": {
+      "sha256": "565bc11464a2c0645a2f3c0b91c103ee40189af54b1579a88ba79092b2ea0987",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/48_Brown_Umber_BaseColor.png": {
+      "sha256": "8a7a35de8ed8cf7d90a6a2585cbaf1cb87c3ea457172d0bd027b2bc35889c3a2",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/49_Red_Brown_BaseColor.png": {
+      "sha256": "b7e3393d17ee2a67d0593ba604abf069b309dfc14b893fb5cb8ee662eff79281",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Color/50_Sepia_BaseColor.png": {
+      "sha256": "93f768fc5ffdf08fa3b37f64f0765a0342177d5871b26380e07f94e382a53f73",
+      "size": 16913
+    },
+    "Materials/Base/Metals/Copper/Copper_BaseColor.png": {
+      "sha256": "e405f5511f0d35810d1b6faa5b75291f6d729b79271fc20a8a5b947bb18144e1",
+      "size": 16905
+    },
+    "Materials/Base/Metals/Copper/Copper_N.png": {
+      "sha256": "8221595d4a575d1e95f059288ce11f1bd0bc7c107ad77bbe482ae7c717816c65",
+      "size": 2272406
+    },
+    "Materials/Base/Metals/Copper/Copper_ORM.png": {
+      "sha256": "65a9b4ed3c7a04dec11410dc7b98a14ebac34567338d44bcae3a1208d07b6298",
+      "size": 995872
+    },
+    "Materials/Base/Metals/Normal_ORM/Normal_ORM.png": {
+      "sha256": "65a9b4ed3c7a04dec11410dc7b98a14ebac34567338d44bcae3a1208d07b6298",
+      "size": 995872
+    },
+    "Materials/Base/Metals/Steel_Stainless/Steel_Stainless_BaseColor.png": {
+      "sha256": "3f8b3b576ce734630625a64faf6266faf411714a59c42c7af395dc0826e52151",
+      "size": 16902
+    },
+    "Materials/Base/Metals/Steel_Stainless/Steel_Stainless_N.png": {
+      "sha256": "8221595d4a575d1e95f059288ce11f1bd0bc7c107ad77bbe482ae7c717816c65",
+      "size": 2272406
+    },
+    "Materials/Base/Metals/Steel_Stainless/Steel_Stainless_ORM.png": {
+      "sha256": "a300aae59deb440b90e73f4ab9e6f0fc2da41ba405442ff988e681df921f2a4e",
+      "size": 779615
+    },
+    "SeattleLabTable/Materials/Textures/DemoTable_TableBase_BaseColor.png": {
+      "sha256": "2cf139f46874df8a133c26eb51405161824ddecb0ce6a094e6477a675656bfe4",
+      "size": 6335308
+    },
+    "SeattleLabTable/Materials/Textures/DemoTable_TableBase_Metallic.png": {
+      "sha256": "c56bdeeecef908a1a6869af71556ad9c43794d0d292e3b8463aa7b82f3367771",
+      "size": 119609
+    },
+    "SeattleLabTable/Materials/Textures/DemoTable_TableBase_Normal.png": {
+      "sha256": "bfcbadb3f98c9fe116bc6eb2c040d09196c40ca16347367900f8fd2d3451e10d",
+      "size": 34371270
+    },
+    "SeattleLabTable/Materials/Textures/DemoTable_TableBase_Roughness.png": {
+      "sha256": "35426471bf910ae4ef32d044b360489de8477c97cf1a75ad25341ef2a25a644b",
+      "size": 7077839
+    },
+    "SeattleLabTable/Materials/Textures/DemoTable_TableParts_BaseColor.png": {
+      "sha256": "5d095ed2e4fe2fa18d35a2677f3c281796fba135544439db8ec32d851144fbc0",
+      "size": 905610
+    },
+    "SeattleLabTable/Materials/Textures/DemoTable_TableParts_Metallic.png": {
+      "sha256": "fdcd7dcec52034b60662cccf58c02ae442c0a87d60b099fcf6cd9ccd6cf5535d",
+      "size": 414290
+    },
+    "SeattleLabTable/Materials/Textures/DemoTable_TableParts_Normal.png": {
+      "sha256": "9413615d7cf9809f639ec9722022c164ad73a14add32a94293fc7c69d97b601c",
+      "size": 13632148
+    },
+    "SeattleLabTable/Materials/Textures/DemoTable_TableParts_Roughness.png": {
+      "sha256": "1cb2096ba97d3519f876b9d0dc84822bdd428cf93f0887a8f75e3bba208c4a35",
+      "size": 2995685
+    },
+    "SeattleLabTable/color_tables/table_Aged_Brass.usd": {
+      "sha256": "b507a80ff7295e8cb1ff6ed392178fefc31d6f7faac3431cc38812b3eb63aa2f",
+      "size": 10536837
+    },
+    "SeattleLabTable/color_tables/table_Amber.usd": {
+      "sha256": "aad65a91bc3d9c6647169145b5390c3a0bc52065159cfc4462e6e6bd62eb1887",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Aqua_Dark.usd": {
+      "sha256": "2c041bc5a0b3d374c3ee233c2cf48b73ed0f89b8d5efdcdcb95a482f5bc3b5c8",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Blackened.usd": {
+      "sha256": "0699a718c58c290a944ccdec60e37e2044898f28ecbec74ec3eccc71ab265851",
+      "size": 10536834
+    },
+    "SeattleLabTable/color_tables/table_Blue_Steel.usd": {
+      "sha256": "dd4992114ec6549eacdd2eb7b611e59a657be9e2d5b5df6a204236382770e4ba",
+      "size": 10536837
+    },
+    "SeattleLabTable/color_tables/table_Brown_Umber.usd": {
+      "sha256": "2445dcf803706e7b67fb332b1461d7aedf2e171cdef2e7701cbdc1b0e72e4b9a",
+      "size": 10536838
+    },
+    "SeattleLabTable/color_tables/table_Burnt_Orange.usd": {
+      "sha256": "fdd2fe198b12b064b1273576b40fb641c6e7910917d4cbdeb6bfa3055d1dccac",
+      "size": 10536836
+    },
+    "SeattleLabTable/color_tables/table_Champagne.usd": {
+      "sha256": "a6d2e4a81d1b1d12eb23212a94a70fa4dc90a09ffcfe0d61d74fe0e4d50e7b87",
+      "size": 10536836
+    },
+    "SeattleLabTable/color_tables/table_Charcoal.usd": {
+      "sha256": "9b49ce68837e83c7c31654d8c759bfbc0e18d63fa254d30f3c497c2fa5032e4b",
+      "size": 10536834
+    },
+    "SeattleLabTable/color_tables/table_Cobalt.usd": {
+      "sha256": "e487f172829b7aeb6a7b3b13ff35ee407c8a1d750fb7266e09c7072a77965010",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Coral.usd": {
+      "sha256": "6022aed9271b8003a74a6da0f7196f525ef5072db170df312c898e154a50b0eb",
+      "size": 10536831
+    },
+    "SeattleLabTable/color_tables/table_Crimson.usd": {
+      "sha256": "47286ca6e4c96cfa8d142c0e55f1349ada7487c8f778fe8fdb0c21e753c224f7",
+      "size": 10536833
+    },
+    "SeattleLabTable/color_tables/table_Cyan.usd": {
+      "sha256": "12aaa1ebf2efc47be89627cb8f339c5b05d36cd9f443941d4a05b2e1db8403e7",
+      "size": 10536830
+    },
+    "SeattleLabTable/color_tables/table_Deep_Blue.usd": {
+      "sha256": "99971d0095ae74646135a6422a15f5fd25e706601102be3002a64c871cb83df9",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Deep_Teal.usd": {
+      "sha256": "fc4efb49a5cd2aa5b55aba82c7d01b0eda7818070ff33c86c999e69090f3c592",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Dusty_Pink.usd": {
+      "sha256": "311178d46311627354082447c1502f4d1b5e42ae164b1491fcd029b5173da2fc",
+      "size": 10536837
+    },
+    "SeattleLabTable/color_tables/table_Emerald.usd": {
+      "sha256": "576c60853b52a8d970ee06b1b9c689fd57a498a4820f71f17c6d412b9c6a813b",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Forest.usd": {
+      "sha256": "54dc18f8408bfc9b74d83985ffebc5d6c16e6e83208ef78ea398dcf690b5cc3a",
+      "size": 10536831
+    },
+    "SeattleLabTable/color_tables/table_Graphite.usd": {
+      "sha256": "160843688211eeb44a2b3c7cc68e06b37059c3dddfa44d4b9aa9c8d5d4dbede3",
+      "size": 10536833
+    },
+    "SeattleLabTable/color_tables/table_Gunmetal.usd": {
+      "sha256": "93c90d6bb95163c4ca9c6413bddfd043940343f6f612842b3b68d6135abdb29a",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Ice_Blue.usd": {
+      "sha256": "225d6bbdfe1c96e392eea0c4d9e9e5a3917c6fe12957c1ba0058b886a68eba3c",
+      "size": 10536834
+    },
+    "SeattleLabTable/color_tables/table_Indigo.usd": {
+      "sha256": "a4424d76580c2e9a58ab70e638595b8f4df3a0fc98fca1a5bcc2933ecd13c3e3",
+      "size": 10536833
+    },
+    "SeattleLabTable/color_tables/table_Lavender_Gray.usd": {
+      "sha256": "7b320d144737a83a4308b49c7516e1a72f1c90406a4db7bbddc62421a504cc7c",
+      "size": 10536837
+    },
+    "SeattleLabTable/color_tables/table_Magenta.usd": {
+      "sha256": "b7d758f5e3e9f27e52e181828fc8cc51ea84158b2b9bbb0cbdb8e96ca4e6f3dc",
+      "size": 10536831
+    },
+    "SeattleLabTable/color_tables/table_Moss_Green.usd": {
+      "sha256": "88ad65b83c91c2615683ba9580f55b1a94d21934ca0d0a1786db648ed53b7804",
+      "size": 10536837
+    },
+    "SeattleLabTable/color_tables/table_Navy.usd": {
+      "sha256": "efe3541bade7deb9710a2f1ef898288950ad2b1b099bd2f37f6c52212e15955c",
+      "size": 10536830
+    },
+    "SeattleLabTable/color_tables/table_Nickel.usd": {
+      "sha256": "477ce659efe8b1f84377548075da9a29c8dc37621061d9987cae041b60e5005c",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Ochre.usd": {
+      "sha256": "1b72f813051c56f4a70b61fac73a3cd277f9233e7389d066892967dc946e559d",
+      "size": 10536831
+    },
+    "SeattleLabTable/color_tables/table_Olive_Gold.usd": {
+      "sha256": "6eb9aba7d4864605b68209a24de8ca6c0942c0d97af3a6c886711cd80aa04dcb",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Pale_Gold.usd": {
+      "sha256": "2195da24e3204029e1c3381c0c35a9bd163e8a2a577360886197e776cf4d7e3c",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Patina_Green.usd": {
+      "sha256": "60b1ba94882a39ae8a0dee0bc936d8586304a09e8fb974c22362ec7c7ed91b69",
+      "size": 10536839
+    },
+    "SeattleLabTable/color_tables/table_Pewter.usd": {
+      "sha256": "2ec7d5adcb0cc3e9c870110141ba2e6a8c2cd158146e0db12c91a0879e1473e1",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Plum.usd": {
+      "sha256": "75f4e6c912f8235c087450b597e60cc98049f8e6e77fe43e6e101424f633ee28",
+      "size": 10536830
+    },
+    "SeattleLabTable/color_tables/table_Purple.usd": {
+      "sha256": "ee955a2a0bdc2926de726996df6b577d08acdf75e28204215cd26847474130e9",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Raspberry.usd": {
+      "sha256": "26ac7afaf8c7d62d32b4ada69ecdc834e4710789d4bd46185b9cd89f062bc1b4",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Red_Brown.usd": {
+      "sha256": "0d75e1b41d5b1b133873c23d614210a6185b7d18f3b0f8726f259538da8141a8",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Rose_Gold.usd": {
+      "sha256": "3f950082cc5835be1f089e671dac5834df3aeb3cbd7fd176b382002caa281bc2",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Ruby_Red.usd": {
+      "sha256": "42df1322683f40a32a9eb747f5bb0bf5a1ca56807d80702f16c7de9277d637e9",
+      "size": 10536834
+    },
+    "SeattleLabTable/color_tables/table_Sage.usd": {
+      "sha256": "8343e7e3c35db202d8993afbbb9d40a5939f84784b4d1f90ed91074a04f3d239",
+      "size": 10536830
+    },
+    "SeattleLabTable/color_tables/table_Salmon.usd": {
+      "sha256": "48a2b93f1ed4479722d9d7ed4518c19039b2b222207c5065103f55bc14bd5bfd",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Sepia.usd": {
+      "sha256": "57d2f0d45b3806681018a32a53298272d5a06c6f80c8e17bdb33b31e1ca0cbdf",
+      "size": 10536831
+    },
+    "SeattleLabTable/color_tables/table_Sky_Metal.usd": {
+      "sha256": "127a2de88b4461b241b00e2cf09c6e3e0514ecc4d3d37b942bad61b65db75f4c",
+      "size": 10536833
+    },
+    "SeattleLabTable/color_tables/table_Slate.usd": {
+      "sha256": "a000160e4cd92beb1c3bcd160e4f4a96ebc0adfc17f2878fb9c88ae704308d5e",
+      "size": 10536830
+    },
+    "SeattleLabTable/color_tables/table_Soft_Silver.usd": {
+      "sha256": "9daea6aeb43d82802d3db82a4f61a19f89f8e5275ee2899e49408c39dcce6460",
+      "size": 10536837
+    },
+    "SeattleLabTable/color_tables/table_Teal.usd": {
+      "sha256": "6704483d9572be62541c2247104779bc4a5e73e1e7646c3c63628a5cfd591eb7",
+      "size": 10536830
+    },
+    "SeattleLabTable/color_tables/table_Titanium.usd": {
+      "sha256": "b06d2b22d1434d9e69e352d09df62e66726afb716401058abe3020addd6a4716",
+      "size": 10536834
+    },
+    "SeattleLabTable/color_tables/table_Violet.usd": {
+      "sha256": "3dd0eb39975a3ddda5a60652b737f17ace266a5e1b83d6683530c9617552b6b8",
+      "size": 10536832
+    },
+    "SeattleLabTable/color_tables/table_Warm_Bronze.usd": {
+      "sha256": "974b5a3355f7e935aa21ff9384326751d3437e93a491e64671bd44cba2836c10",
+      "size": 10536838
+    },
+    "SeattleLabTable/color_tables/table_White_Gold.usd": {
+      "sha256": "f69485cb4682500e8b0d69b7c9863347031067461e0c43184ed291ed542a23fd",
+      "size": 10536835
+    },
+    "SeattleLabTable/color_tables/table_Zinc.usd": {
+      "sha256": "5c612c95b3db56698b9132faa41bfc41083e4db9e2def7081e28821856dfd025",
+      "size": 10536830
+    },
+    "SeattleLabTable/color_tables/table_aluminum_anodized.usd": {
+      "sha256": "60a6aed1bd3136a78b435a3d10d4a4e8bd12145598527c7655ae6bab47799191",
+      "size": 10536799
+    },
+    "SeattleLabTable/color_tables/table_aluminum_cast.usd": {
+      "sha256": "d1f4a07d62a6bbf2340627ba03a9396fa7b9e85bf31f1df079cee641dc37e929",
+      "size": 10536793
+    },
+    "SeattleLabTable/color_tables/table_base.usd": {
+      "sha256": "ff15593bbeae2592e8bfca86a809bc4d787fea6ed7b490c35b582c1354dc39b6",
+      "size": 10536685
+    },
+    "SeattleLabTable/color_tables/table_base0.usd": {
+      "sha256": "7e8755e0796faf4db6255088a00e90213c11f997768e743c15be2ed4f5e9a63a",
+      "size": 10536722
+    },
+    "SeattleLabTable/color_tables/table_brass.usd": {
+      "sha256": "b7b9fafa186c99042ff1717bc75040b97071339199ce2357094756526c5215ff",
+      "size": 10536785
+    },
+    "SeattleLabTable/color_tables/table_brushed_antique_cropper.usd": {
+      "sha256": "fe0c7456b547950cc3bca5207c2f3cf3870650b65112d2516a148afe054e7e69",
+      "size": 10536805
+    },
+    "SeattleLabTable/color_tables/table_copper.usd": {
+      "sha256": "f4bb01f8f1da2feca361951cef4c3179e754beb451791fb8d2e829ceb9752962",
+      "size": 10536787
+    },
+    "SeattleLabTable/color_tables/table_debug.usda": {
+      "sha256": "0ba12dd2e6933293320dec9245f683056cd480dfe25e318792c6b41d58db21a8",
+      "size": 36153859
+    },
+    "SeattleLabTable/color_tables/table_steel_stainless.usd": {
+      "sha256": "a9980cb5f5a43413fececb13603568d99ca6cbaf24c512245d0d2f3036c6e633",
+      "size": 10536796
+    },
+    "SeattleLabTable/table_aluminum_anodized.usd": {
+      "sha256": "60a6aed1bd3136a78b435a3d10d4a4e8bd12145598527c7655ae6bab47799191",
+      "size": 10536799
+    },
+    "SeattleLabTable/table_aluminum_cast.usd": {
+      "sha256": "d1f4a07d62a6bbf2340627ba03a9396fa7b9e85bf31f1df079cee641dc37e929",
+      "size": 10536793
+    },
+    "SeattleLabTable/table_brass.usd": {
+      "sha256": "b7b9fafa186c99042ff1717bc75040b97071339199ce2357094756526c5215ff",
+      "size": 10536785
+    },
+    "SeattleLabTable/table_brushed_antique_cropper.usd": {
+      "sha256": "fe0c7456b547950cc3bca5207c2f3cf3870650b65112d2516a148afe054e7e69",
+      "size": 10536805
+    },
+    "SeattleLabTable/table_copper.usd": {
+      "sha256": "f4bb01f8f1da2feca361951cef4c3179e754beb451791fb8d2e829ceb9752962",
+      "size": 10536787
+    },
+    "SeattleLabTable/table_debug.usda": {
+      "sha256": "0ba12dd2e6933293320dec9245f683056cd480dfe25e318792c6b41d58db21a8",
+      "size": 36153859
+    },
+    "SeattleLabTable/table_steel_stainless.usd": {
+      "sha256": "a9980cb5f5a43413fececb13603568d99ca6cbaf24c512245d0d2f3036c6e633",
+      "size": 10536796
+    },
+    "all_setting/color_tables.jsonl": {
+      "sha256": "4ddf7d0e4b7d58e8dd64fcf3f156e7318e90cadbc64c27d5f4946d9b64c34f38",
+      "size": 2830
+    },
+    "all_setting/combined_scenarios/Isaaclab_all_scenarios_10025.jsonl": {
+      "sha256": "db8f70bab6205c5b314ed265be003f80e2c6409df10961a3ea8eed7ff11b6a83",
+      "size": 4586506
+    },
+    "all_setting/combined_scenarios/Isaaclab_table_cube_pose_test.jsonl": {
+      "sha256": "1a33dfcc7dcdbdb8048f7f7686715bf1d07d1015062f76406b31eb6fd1cab4e6",
+      "size": 17307
+    },
+    "all_setting/combined_scenarios/Isaaclab_table_test.jsonl": {
+      "sha256": "5136da0a5e2e09aa00b7c3290e4bdaba2583e16c363d8f767c9a5ed503d4621b",
+      "size": 14430
+    },
+    "all_setting/combined_scenarios/cube_camera_25x25_625.jsonl": {
+      "sha256": "6f5b2947d67642c5d8f6b36b6495bc2d4d81666216f751290d20bd058644eec0",
+      "size": 292925
+    },
+    "all_setting/combined_scenarios/isaaclab_camera_test.jsonl": {
+      "sha256": "e4294215a9c080f452aaa87dc50fc8e3822f2935c0bc9f3ccd1a43099edaac52",
+      "size": 15494
+    },
+    "all_setting/combined_scenarios/table_camera_25x25_625.jsonl": {
+      "sha256": "f7a7a97d77ca527ee7df14452fb38e705af762059129b8fe2d71846bcb3322e3",
+      "size": 263400
+    },
+    "all_setting/combined_scenarios/table_cube_25x25_625.jsonl": {
+      "sha256": "77c1657588d2860b90e58874bd5c4efbd07a65fffd70ae56d74e81cd4c3ced94",
+      "size": 285300
+    },
+    "all_setting/combined_scenarios/table_cube_camera_20x20x20_8000.jsonl": {
+      "sha256": "1df3f2f53a4e0de942d23e163909a0028e60dda1bc166d6878e50419df263e37",
+      "size": 3852400
+    },
+    "all_setting/combined_with_distance/Isaaclab_all_scenarios_10025_with_distance.jsonl": {
+      "sha256": "d8ba4fc193c081174ee094431ce0764a7c63b10d0730f56a08882a930af881ec",
+      "size": 5288378
+    },
+    "all_setting/combined_with_distance/Isaaclab_table_cube_pose_test_with_distance.jsonl": {
+      "sha256": "ab233811a668de14bf78bcd7c222c18fd4ae95e235f6101c8f724b267e4245bc",
+      "size": 20874
+    },
+    "all_setting/combined_with_distance/Isaaclab_table_test_with_distance.jsonl": {
+      "sha256": "8eb4e752b000812410b3e6d706485d9eaca8085a16f7e525983a3a215997bbab",
+      "size": 17961
+    },
+    "all_setting/combined_with_distance/cube_camera_25x25_625_with_distance.jsonl": {
+      "sha256": "5819406258235ad63fb37f7e280c63b5b23f9cd6aa24ff30a8521146d6ba5050",
+      "size": 330556
+    },
+    "all_setting/combined_with_distance/distance_summary.json": {
+      "sha256": "50dd87db082d97e2c5174052877a30597fe97961fbb7f61282b0b8d5c8146b2a",
+      "size": 181
+    },
+    "all_setting/combined_with_distance/isaaclab_camera_test_with_distance.jsonl": {
+      "sha256": "94446a68afa9642d4830ef63761aa5d42d1f79c358fb7e4acb6d0b724cd5ef4e",
+      "size": 19006
+    },
+    "all_setting/combined_with_distance/table_camera_25x25_625_with_distance.jsonl": {
+      "sha256": "8dd09a3495706828f8f8afc493fc678053f9fb204b64587ad6f0cc9c5d8991fc",
+      "size": 300277
+    },
+    "all_setting/combined_with_distance/table_cube_25x25_625_with_distance.jsonl": {
+      "sha256": "78aa64a701832677f2ad55d0a6db243c5b9efaffcdca70f4141f241685e809e9",
+      "size": 323870
+    },
+    "all_setting/combined_with_distance/table_cube_camera_20x20x20_8000_with_distance.jsonl": {
+      "sha256": "214645b19c68a5b39c97c15eaecf040b13d171b78f6c33078f3ef0fb039c3a9a",
+      "size": 4275834
+    },
+    "all_setting/combined_with_ijepa_distance/Isaaclab_all_scenarios_10025_with_ijepa_distance.jsonl": {
+      "sha256": "6fe5d40f460af1ce23e47a7fec8a62ca4c02a2c2526c0119ad211567d533af29",
+      "size": 8331319
+    },
+    "all_setting/combined_with_ijepa_distance/ijepa_distance_summary.json": {
+      "sha256": "64aca84c209d947a87e229c0d30663830d516d68b63851a97ad1d21784fc06ec",
+      "size": 2911
+    },
+    "all_setting/combined_with_imagebind_distance/Isaaclab_all_scenarios_10025_with_imagebind_distance.jsonl": {
+      "sha256": "a2306ef126534a7a2ed191eec1115748d221ea2619b801088219f00c7ea18e99",
+      "size": 6459047
+    },
+    "all_setting/combined_with_imagebind_distance/imagebind_distance_summary.json": {
+      "sha256": "34cb2e12ae3b4f872949ec4feb68b3b396f60792c31c4963d4324ec5fb6c1aa6",
+      "size": 1613
+    },
+    "all_setting/combined_with_pixel_l1_distance/Isaaclab_all_scenarios_10025_with_pixel_l1_distance.jsonl": {
+      "sha256": "e8fdba26176ab83b80e444596323a0548efbd262fbbf960ef407ea461f256813",
+      "size": 6236869
+    },
+    "all_setting/combined_with_pixel_l1_distance/pixel_l1_distance_summary.json": {
+      "sha256": "cdb6c518ab6da509e0438e3baf3a1a5443a3a5d1e9a0a02d1c1dae1fb1f04b53",
+      "size": 1223
+    },
+    "all_setting/combined_with_siglip2_distance/Isaaclab_all_scenarios_10025_with_siglip2_distance.jsonl": {
+      "sha256": "c1682fa554be922c0b8dcb5b8b482a1efafd5172a78bccbf7a769b9f84a5213e",
+      "size": 6570758
+    },
+    "all_setting/combined_with_siglip2_distance/siglip2_distance_summary.json": {
+      "sha256": "eb9e7a71363fedeecd21eb7431b9f036742a09774e8069cb5b863a3f9b5a991a",
+      "size": 2722
+    },
+    "all_setting/combined_with_structured_distance/Isaaclab_all_scenarios_10025_with_structured_distance.jsonl": {
+      "sha256": "125792645af6ccd952830f68c58be202ae35e117bb852c1d1923170f0ebc03bc",
+      "size": 12397938
+    },
+    "all_setting/combined_with_structured_distance/structured_distance_summary.json": {
+      "sha256": "63237d568477d7e05abc9971807052a6398a318b5aa28b8b086a7ddf74fe9098",
+      "size": 1480
+    },
+    "all_setting/cube_pose_50.jsonl": {
+      "sha256": "84f7da7060e24a53621fb7b895414591e83aa51ccfea2963bb2ce44c7eb1a557",
+      "size": 11657
+    },
+    "all_setting/curriculum_10stage_200/Isaaclab_10stage_200_stage_manifest.json": {
+      "sha256": "beb370b784094bf2d64a3f6e5579e61968ee1c09b93fef89efdf1dafd588f1bb",
+      "size": 25073
+    },
+    "all_setting/curriculum_10stage_200/Isaaclab_10stage_200_with_distance.jsonl": {
+      "sha256": "eeb64ba829e9290c404dfb49f0dcca36aa6ffabda17b7f1d8c01b8d1b6872ba4",
+      "size": 94969
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_00.jsonl": {
+      "sha256": "db249987f36901e057eaa566f732d583579d3271077bba6b4927c0cf2a2462b2",
+      "size": 4276
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_01.jsonl": {
+      "sha256": "37bfa94b9530d441f18195b34971204117498d14d887d950b182831595fbac70",
+      "size": 9004
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_02.jsonl": {
+      "sha256": "6585bcd64a58111219d55078128fd287756addc171c19f2db23f7909b66f58a4",
+      "size": 18597
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_03.jsonl": {
+      "sha256": "42139813a28819316347f84619a6b2d5d068590b91a4c51dc5e6a764a0fbbe89",
+      "size": 28157
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_04.jsonl": {
+      "sha256": "f908ef279e55189f4fc414be3296f41a1b23ee2b6fe19d24adac6950bda0a8cd",
+      "size": 37753
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_05.jsonl": {
+      "sha256": "f0863625fdffb6e2aaaef167d0846c4f9f38dc1c30c6bc7f8cd53ffd3ab8cf75",
+      "size": 47102
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_06.jsonl": {
+      "sha256": "921477b43b09e1a034ccd78695dd94c86b862853d7c9ed6822423d8afe0c99d8",
+      "size": 56644
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_07.jsonl": {
+      "sha256": "62421b67c1158c9d4fa52374f1a19f620c10d3baad5ae71fc2b307a44c5105be",
+      "size": 66208
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_08.jsonl": {
+      "sha256": "92386b62d67fa0b28857753b1dcc111eb3844bd7e2ce32972f65f08f91d0d33b",
+      "size": 80501
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/cumulative/stage_09.jsonl": {
+      "sha256": "eeb64ba829e9290c404dfb49f0dcca36aa6ffabda17b7f1d8c01b8d1b6872ba4",
+      "size": 94969
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_00.jsonl": {
+      "sha256": "db249987f36901e057eaa566f732d583579d3271077bba6b4927c0cf2a2462b2",
+      "size": 4276
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_01.jsonl": {
+      "sha256": "82c1a70a8a175944c9bd540c8bf4a05bd4b6fefe981cfc0725fc8397431713ac",
+      "size": 4728
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_02.jsonl": {
+      "sha256": "ca9878e104c97a1fe374b5ba9a04a63e98cf220d459531c09dcfc3da38b0b347",
+      "size": 9593
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_03.jsonl": {
+      "sha256": "d779f4c31e6e92b3d0b91706222679d7f3f0fb05aaa8b46c0154ef2ac373ebff",
+      "size": 9560
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_04.jsonl": {
+      "sha256": "64f8e7a4b1f034b2d136fbd60f9c423592d9ec20e6aac34fdcc6c1ccea9ebe3e",
+      "size": 9596
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_05.jsonl": {
+      "sha256": "4be67ca89f593f9d855fe77b7efcd788ae868225ea8edae5b97084635c7fa3da",
+      "size": 9349
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_06.jsonl": {
+      "sha256": "51ed926ccb3b23dafa72c74c01f81ed812de001b57034c72fd5ca993fc31a900",
+      "size": 9542
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_07.jsonl": {
+      "sha256": "8c4098e9fd4e6ebe7b925fa22aefe5ec2505ce696e83cf24aaf9f413843b81b8",
+      "size": 9564
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_08.jsonl": {
+      "sha256": "68b3c573d393f78fdc8395a7353a02c7a9641b26d7bef4482a74652a2bf899be",
+      "size": 14293
+    },
+    "all_setting/curriculum_10stage_200/stage_sets/incremental/stage_09.jsonl": {
+      "sha256": "36e6d72c0586896b96e7bee57a7b9f045fe995e649e4d3f8a6c55ad417685867",
+      "size": 14468
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/Isaaclab_10stage_200_dynamic_top10_stage_manifest.json": {
+      "sha256": "71ef7386f6cb0c9786aaf33e51f017735f4bbde4689eb0755fd02ca8310ab38b",
+      "size": 25921
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/Isaaclab_10stage_200_dynamic_top10_with_dynamic_distance.jsonl": {
+      "sha256": "1e4e841c2355108f51ef393882d4742da04ff4ab85a0a99d1b3df257343e855a",
+      "size": 181533
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_00.jsonl": {
+      "sha256": "129a313f01782303ad367435b83cd7cdbd99244e1032d0c5fc5fca7ca5f9d271",
+      "size": 5788
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_01.jsonl": {
+      "sha256": "2b2a12244fbd2e844e4494327c31b54b3c18b56ddeb906747da0a754f06f260d",
+      "size": 15035
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_02.jsonl": {
+      "sha256": "5bb71df2097b1b07aaac92b4d154cf830924a02376c4d314bd860d43a4828aae",
+      "size": 33039
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_03.jsonl": {
+      "sha256": "eb8be7a7cde421a36f0006583684ce4c4af815713f3127bc3a4042c0dba968a1",
+      "size": 51433
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_04.jsonl": {
+      "sha256": "9f355739c1015e3f22173d3476acbe4d208eda69eeca6e621932334a5f96fd31",
+      "size": 69338
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_05.jsonl": {
+      "sha256": "b0b1e4d968aeca6ca3169fa28f6d235faaf09d3463503119f89bb8bd4a1481ee",
+      "size": 87834
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_06.jsonl": {
+      "sha256": "af9292ddd44023cb393943a12980994605938762c26205ab5d2a7ff94dd8cfd0",
+      "size": 106040
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_07.jsonl": {
+      "sha256": "046d4205faf6e7a8f62433a1c9bad3340cef95e4cbe556a7a7ae465dc06a3f71",
+      "size": 124402
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_08.jsonl": {
+      "sha256": "82e1117da8cad8399e93e76afbff03e6dd06dbed7626fb12e149c513009e8462",
+      "size": 153037
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/cumulative/stage_09.jsonl": {
+      "sha256": "1e4e841c2355108f51ef393882d4742da04ff4ab85a0a99d1b3df257343e855a",
+      "size": 181533
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_00.jsonl": {
+      "sha256": "129a313f01782303ad367435b83cd7cdbd99244e1032d0c5fc5fca7ca5f9d271",
+      "size": 5788
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_01.jsonl": {
+      "sha256": "e35948add7a73ee3ba283d89c14db0ebb8027c6b5b26b833b7e5df55f605de16",
+      "size": 9247
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_02.jsonl": {
+      "sha256": "b16ddcdb29e2d042d4fbf8e6c9440baef1c37a240d5cf40d65afe5a3bada3163",
+      "size": 18004
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_03.jsonl": {
+      "sha256": "105a9a9cdaabd15b176bc20153c437b1a3bcb2ad58781a711ec4163c314480b7",
+      "size": 18394
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_04.jsonl": {
+      "sha256": "f0af6696ea52f832eb75f460df2dff9c6a8dc6a8438ddf4d626040727f27fd29",
+      "size": 17905
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_05.jsonl": {
+      "sha256": "93c29ae500f9be2d278dbba80d91301634ead6ba65982b84321abdb18112a8f1",
+      "size": 18496
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_06.jsonl": {
+      "sha256": "3e65f64a0e22cedee2daa89bc1dccdfc274da99edd189b0bae157dd86d511fd8",
+      "size": 18206
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_07.jsonl": {
+      "sha256": "59632464bbee940d100022ead70d3c449c354acfb567fca0eb160d975bd1d5b6",
+      "size": 18362
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_08.jsonl": {
+      "sha256": "2e28b83e3ff57997c1e0695ab2bb957cdbced4ccb8b4ea40477a62e8f7c6b585",
+      "size": 28635
+    },
+    "all_setting/curriculum_10stage_200_dynamic_top10/stage_sets/incremental/stage_09.jsonl": {
+      "sha256": "d9d73e2a791cb35fa83b00138a06bf3fb36b4c13507afd80786fd2e54f629de1",
+      "size": 28496
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/Isaaclab_19stage_10025_dynamic_top10_stage_manifest.json": {
+      "sha256": "a15ce184aaaa9b96a8fc49541d9ef1b863343ec604fe4863bac8d6d431df5c7e",
+      "size": 1313190
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/Isaaclab_19stage_10025_dynamic_top10_with_dynamic_distance.jsonl": {
+      "sha256": "8dd3618c4fd3ef53832765e6b3dd3bcccbe7692dee840f395082198b71c9f143",
+      "size": 9599526
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_00.jsonl": {
+      "sha256": "788740aa4b65bb6efad310bd7a50a41cd9e300cc7b9a589751f6a44fb3fe004c",
+      "size": 30920
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_01.jsonl": {
+      "sha256": "f748293269b2aed6b0d8d288140c3344c701a76ddc632b8cc906a1ce1887d1e0",
+      "size": 76288
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_02.jsonl": {
+      "sha256": "b302d044a669572aefb9b867664c500008fdaa9f867d9f6ca6860d7605f73c90",
+      "size": 169981
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_03.jsonl": {
+      "sha256": "73a39bd3c8d1ead1bf88ea0d55772dd8095eeab5899511f06e0ca0f802434a9d",
+      "size": 359149
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_04.jsonl": {
+      "sha256": "76f8cd74db4cedb7f0d686ada8ccf8b6171158b7cba6d99100d33fdadfa776ee",
+      "size": 548282
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_05.jsonl": {
+      "sha256": "1aee3b03102885338be99f104527ff45e407771fed36d4efb2dde15b5205da72",
+      "size": 736954
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_06.jsonl": {
+      "sha256": "a0c60fdf611d9cb7bef776436b2019b01d835afc6f33e705f5765bfd6f4b4063",
+      "size": 914660
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_07.jsonl": {
+      "sha256": "e0aeaa93c1b1f5843222617a74aacfc8452ad5c2af0d549e979eb48be2fe32e5",
+      "size": 1113524
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_08.jsonl": {
+      "sha256": "b5efb0e78758a8e896760ffc947680a41c9225923e41a00eb48687ebaaf5b3a8",
+      "size": 1396781
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_09.jsonl": {
+      "sha256": "968d844afc3b288a46aad14ccb7d4540068b83c8f74aac9d1fee2525ca5d7cf5",
+      "size": 1870726
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_10.jsonl": {
+      "sha256": "0026f7164e296c03f0fb1a033d1c9bdec00d078c198804d23ee53bbdfc43667b",
+      "size": 2351729
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_11.jsonl": {
+      "sha256": "32023932372669016ffe05d689efcbfa715890eb50951a72a92e1e390f937882",
+      "size": 2832305
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_12.jsonl": {
+      "sha256": "7e752c435843c14eb37cdc8ea50fb788d567a8002cee5761fe248f357c49a9d6",
+      "size": 3844830
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_13.jsonl": {
+      "sha256": "1b7bc1527eac7f991a27c402987d74e35ca07c44134b3dcd57d293f3380a29ed",
+      "size": 4764548
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_14.jsonl": {
+      "sha256": "80af9df2454d367ddc6c9ca0c95b0966c25ca736d201d30699f311470a7cb627",
+      "size": 5694949
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_15.jsonl": {
+      "sha256": "4e30e4e5eb6a5f02f1fbb8cc3098d473ff6c68333ccd6943ca06d5e3d34c9fb3",
+      "size": 6692778
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_16.jsonl": {
+      "sha256": "2334d6f407e48c41d8c6742b9b684f268ae1e46a420bbeee826734aed1769037",
+      "size": 7669554
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_17.jsonl": {
+      "sha256": "e588defd728fdf9af191d18c6983293640f4a83978ef0db20d6dbb1fdb5b1169",
+      "size": 8616181
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/cumulative/stage_18.jsonl": {
+      "sha256": "8dd3618c4fd3ef53832765e6b3dd3bcccbe7692dee840f395082198b71c9f143",
+      "size": 9599526
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_00.jsonl": {
+      "sha256": "788740aa4b65bb6efad310bd7a50a41cd9e300cc7b9a589751f6a44fb3fe004c",
+      "size": 30920
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_01.jsonl": {
+      "sha256": "c3f05a11520d5faa7d3b00d956fedcbd124dd653b9bba1171cb3f51495db893c",
+      "size": 45368
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_02.jsonl": {
+      "sha256": "5acb39483b5513a4dc380ed95a1a8e8378756f4fcd10aff2cb31a9763716d054",
+      "size": 93693
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_03.jsonl": {
+      "sha256": "3e0a3ab7d5960397d7448ac6109c4d92555f20c4eed8e7d979941c92c300ff04",
+      "size": 189168
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_04.jsonl": {
+      "sha256": "0ab05bf2f46a0515356806b26c656a5e8a45ce752571809f3937bd4c5d3a747f",
+      "size": 189133
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_05.jsonl": {
+      "sha256": "3587f6ae1e0c750fb5b988e9c2e5379d4c3686f5af06eb8a636967726167cb36",
+      "size": 188672
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_06.jsonl": {
+      "sha256": "72ccc9f21c657afb2cf07b5191dc1ea53a31ccff8e144c1d8a35d6fce87e07c7",
+      "size": 177706
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_07.jsonl": {
+      "sha256": "b4fc00d866c9b2efab23deb3acd756cadd483fdec41f7ca13dc97cb845a1a427",
+      "size": 198864
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_08.jsonl": {
+      "sha256": "1505876bde9e15a21dde5c0ed5ae6fc2841d51a7c6ecf96bf21949ba8433796f",
+      "size": 283257
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_09.jsonl": {
+      "sha256": "f34c20de79795cbf666a4999c90dfae27ea72ed0131db69435fec5d48246983f",
+      "size": 473945
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_10.jsonl": {
+      "sha256": "55b7bc5d0d26f7de3dc06f8a3ac1a2a74fb26ea79fc42fc79207426866a138b2",
+      "size": 481003
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_11.jsonl": {
+      "sha256": "6dba67c11970d829618a3f643d3a680512e5bb68beba76e56ec03c62a6a4f8dd",
+      "size": 480576
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_12.jsonl": {
+      "sha256": "171eba050f4262571c390862bb53291822451840a25bf23185210dc26a28e443",
+      "size": 1012525
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_13.jsonl": {
+      "sha256": "a7bb67fc153c36633412837c836006303e97130e216cf59392df26e5a1eaaddc",
+      "size": 919718
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_14.jsonl": {
+      "sha256": "ef9b38c8d5e2c303155e422bc460127bc996eedceecffb4cb219db206465167f",
+      "size": 930401
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_15.jsonl": {
+      "sha256": "05fa95943edc2e8745eb3e986f13818cebe402b81bee81357b716548ea888ef3",
+      "size": 997829
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_16.jsonl": {
+      "sha256": "6640296e02af9d1ef7290e6b1fec12cf37170ed8d1c9f9c262a984f8ddb21640",
+      "size": 976776
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_17.jsonl": {
+      "sha256": "2fcef6f262da5906fcbb171c563b7d4131ea9225414dc4faa809bda11454c092",
+      "size": 946627
+    },
+    "all_setting/curriculum_19stage_10025_dynamic_top10/stage_sets/incremental/stage_18.jsonl": {
+      "sha256": "7977cfea1221c0b91ad446c455a539bbbc7c88463b1e000324921c8d252c6bdc",
+      "size": 983345
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/Isaaclab_19stage_10025_ijepa_stage_manifest.json": {
+      "sha256": "baf024e69b1a7023a1d423fef7cd3e2a29bf6f40250ae69c370349b3e9d02860",
+      "size": 1311529
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/Isaaclab_19stage_10025_ijepa_with_distance.jsonl": {
+      "sha256": "4bcbe1947b964392cd713633b91d05d41d3d58bb44fb80ae8dbeff266d1d6b5e",
+      "size": 8331319
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_00.jsonl": {
+      "sha256": "cd78890ccaf9d205f125f09425a249b625f5e21ce51e64665a72ebf60439a6a8",
+      "size": 38253
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_01.jsonl": {
+      "sha256": "81cd8af6ce1e268d421967fce4001dd39114ed048410683d728e00443e2cb75a",
+      "size": 76953
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_02.jsonl": {
+      "sha256": "5f228ce2d2899f7aaaaf61dfa13df8e402a263b5260e652d4c45a576acca26ee",
+      "size": 156277
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_03.jsonl": {
+      "sha256": "d9cb2808397ba0ca3cd884ae95003d6600efa94900f1b47e727ea6e7e57b3894",
+      "size": 314755
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_04.jsonl": {
+      "sha256": "a9ff651c97cdcf2cfa654004ad5f669f61579d41444a83294de33f03569d936b",
+      "size": 478079
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_05.jsonl": {
+      "sha256": "0b91675ad1eea81acba46c8fe9af9b12a93366248d5aea35479ccdd262ddd6e0",
+      "size": 642539
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_06.jsonl": {
+      "sha256": "dcb79e8cce0b7dd709c989c5d79fa7abae4f8260ccc65c2dfdc0b54444017c9e",
+      "size": 798110
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_07.jsonl": {
+      "sha256": "bfa7893eb26e62fac6a338c754b651f308ae667572220f4bf16c2c0bcc97a09f",
+      "size": 971051
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_08.jsonl": {
+      "sha256": "82091d5f7d9c05c267cc2b568afa9fb92bd86fdc7de226acf2ae843c0a4d9f8d",
+      "size": 1219621
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_09.jsonl": {
+      "sha256": "133f1c6d0c898af1a95e087dab36db32875b01ddda75abe9b58669c4993b1d33",
+      "size": 1635156
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_10.jsonl": {
+      "sha256": "d9bd7b0a3a57db80cc3757439c06d32504ec72ebe2437c916fc65ea846344236",
+      "size": 2056853
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_11.jsonl": {
+      "sha256": "99da5afc22d4cca029f25805a259d7e216d5c04a144ae6df39507281b5ca57e3",
+      "size": 2475736
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_12.jsonl": {
+      "sha256": "78bfdb86c8d50bd92e1318850fb0439a6b5d140a8b0ccf0afaa0ba62aa3ecc4f",
+      "size": 3351257
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_13.jsonl": {
+      "sha256": "cd1cb0b363b210d828d788ca3208a197d57df61b00d0a49efe9612c3f42697ba",
+      "size": 4143404
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_14.jsonl": {
+      "sha256": "da33d9ac682d991a69269345c423a9c3cac9a48c878eb83dde6c54fb46146210",
+      "size": 4945320
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_15.jsonl": {
+      "sha256": "16b64948d1088e1b9a1637532ba6da7e754d9e73aefbfe1ef9b70c6f64cbe842",
+      "size": 5808268
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_16.jsonl": {
+      "sha256": "9b1ee43cc14c074eb896fd0944f85059868973ac34bc2ad589450b617bc79fb2",
+      "size": 6653216
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_17.jsonl": {
+      "sha256": "3aef333dac1aba3a8cc46c89155ff284aed391c809acf7c07af52b0b0a4645f1",
+      "size": 7475808
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/cumulative/stage_18.jsonl": {
+      "sha256": "4bcbe1947b964392cd713633b91d05d41d3d58bb44fb80ae8dbeff266d1d6b5e",
+      "size": 8331319
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_00.jsonl": {
+      "sha256": "cd78890ccaf9d205f125f09425a249b625f5e21ce51e64665a72ebf60439a6a8",
+      "size": 38253
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_01.jsonl": {
+      "sha256": "3e57918dfe0244c7f6d902e32ef7e6b0b29b8ed5249c5b8f40b2cccf812d5774",
+      "size": 38700
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_02.jsonl": {
+      "sha256": "4221e6ed63079d7c70e45c51eb61c3661ad89a2315505c0af0ed6dc1104d4da3",
+      "size": 79324
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_03.jsonl": {
+      "sha256": "9dfad658092e16eb72d28c650a7da6abb39ac49ce0bf5f6a77288c0490799846",
+      "size": 158478
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_04.jsonl": {
+      "sha256": "19638a118769f033c4bed8178f3a38abfd8c610c8481d3661d8542ddb7f557d0",
+      "size": 163324
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_05.jsonl": {
+      "sha256": "b3e88eb55c995c1d3c2b013a74b8183992ea461ebec914b91879db347d3f05de",
+      "size": 164460
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_06.jsonl": {
+      "sha256": "7a5905e71637ff779bacfbc9391ba7545158a6135bdd05b920d949fe4e92de0e",
+      "size": 155571
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_07.jsonl": {
+      "sha256": "d2cc917abf89aa4ad0e2e7817c70d1de0a74009495b400d56565f8cb222b7c1f",
+      "size": 172941
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_08.jsonl": {
+      "sha256": "d1861ef8fa71b63d1e925e0a185de0fe117365d2e2f2a7e061559a890548374e",
+      "size": 248570
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_09.jsonl": {
+      "sha256": "3e19e4cafcb31128c5e5abba9f5f6f49a2dbda7b064f1ee202165ffaaf8e5040",
+      "size": 415535
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_10.jsonl": {
+      "sha256": "feb4e68d916c3bebf8026a7baad47810b8a2c75639749f674a8c48b0df4958f3",
+      "size": 421697
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_11.jsonl": {
+      "sha256": "3fdaa218324f5ca730b2f4b8f6086a62822f7db7241c57537ef3b50b2237c710",
+      "size": 418883
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_12.jsonl": {
+      "sha256": "24c432429d3a264f7691c1ec1d3061087fbd5638d9747500ec99392b7f22bf07",
+      "size": 875521
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_13.jsonl": {
+      "sha256": "521f9ff9d70d89c8da8c6ba28f92c527f0a47fb17747f8f3ec967e720583ac93",
+      "size": 792147
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_14.jsonl": {
+      "sha256": "62172df8898c5c7f4021a4003be81c2bbeba7cdbacd4797b1d5ac80901d0fe7b",
+      "size": 801916
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_15.jsonl": {
+      "sha256": "4ef97145097a2de45498b4051fc53a448c84edff16544d96a13dcc2ad404d4b4",
+      "size": 862948
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_16.jsonl": {
+      "sha256": "274e1710d8d1974fdd4e0c69c9e5019ebc9bbb093f2f40b6a9e399cf0623c6cb",
+      "size": 844948
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_17.jsonl": {
+      "sha256": "20bcf198ac5813d01206fa25f4b18b041198e75a342b6e7459ebbdc331c99a1a",
+      "size": 822592
+    },
+    "all_setting/curriculum_19stage_10025_ijepa/stage_sets/incremental/stage_18.jsonl": {
+      "sha256": "da1013ebb56f3361a74ad16825ba8f842aa9f4283b024d582492a2dd80941446",
+      "size": 855511
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/Isaaclab_19stage_10025_imagebind_stage_manifest.json": {
+      "sha256": "8be006bded818b4ce3697ca3c70495639dbe0be5b1bc3747cb0d64535e30bb5d",
+      "size": 1311436
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/Isaaclab_19stage_10025_imagebind_with_distance.jsonl": {
+      "sha256": "2cf166216bf03bd9074520aa59b8de316fa1048d40bfba8a57cc0a66fd980e8e",
+      "size": 6459047
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_00.jsonl": {
+      "sha256": "d3255733ef5da386efe8943ed6a882583359eb349a435dcda0c57df02b8ef775",
+      "size": 29207
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_01.jsonl": {
+      "sha256": "d02a7772aec5b6dbd769a7e4c2f08eb9af1324c8d3f9544d1ad230f85d2dc8ae",
+      "size": 58485
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_02.jsonl": {
+      "sha256": "e3dd53107e95e2018399ea5e050647c140311de847ee2863835026cc2e7d39ee",
+      "size": 119398
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_03.jsonl": {
+      "sha256": "be62c5417ff2503b484a6a955fe387fc4ae96b711a3b237c6cdc183337f7f8fd",
+      "size": 244234
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_04.jsonl": {
+      "sha256": "665ddb37a4b27ddc30c59bcfb342a7fa1c2169f74ab8c61c71831065f836d338",
+      "size": 370008
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_05.jsonl": {
+      "sha256": "ba142b9c1c790c27726c04a939a61bc4001e19d8ce3f5227ab295c865300a310",
+      "size": 496777
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_06.jsonl": {
+      "sha256": "4d195573e954d96941a3f8badb370154c3a8227cf064fdf651e723683a941321",
+      "size": 617827
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_07.jsonl": {
+      "sha256": "bde486a2efadd9e40ad595e96dab68baa517549f4adabeaabea28d5981eb0611",
+      "size": 752806
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_08.jsonl": {
+      "sha256": "7531765f5f4425bc5a0cbe2b7530a7074fb706fca9c4e95bd45b7dbb38ab38c0",
+      "size": 944901
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_09.jsonl": {
+      "sha256": "594ddd1255a1839b7f365751eabf02438e17cf3fbaae9e5f8c5c19f152ad8630",
+      "size": 1262009
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_10.jsonl": {
+      "sha256": "048b5a2b07ab22002869d5a5ba82b67cef96da36daeb6d29d293b5eb0ab476b3",
+      "size": 1584841
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_11.jsonl": {
+      "sha256": "4ca0f290a286e3d783bce2cf3f7009b210851049fb1b8a68dfad6927024b06bd",
+      "size": 1906843
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_12.jsonl": {
+      "sha256": "c62f75be9a4919cbfa172b9ea2616cb7bebf4f92d799fe11d110c3bdff82e143",
+      "size": 2583493
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_13.jsonl": {
+      "sha256": "34499e7bf8db336625cadc29898f9c6c2d4bcdcae9caccc4a815be550e702533",
+      "size": 3197991
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_14.jsonl": {
+      "sha256": "097de985661cf298f0e953116639ed74428f50e7283e9c2777e91978fc1fdb4b",
+      "size": 3822286
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_15.jsonl": {
+      "sha256": "ee1c953ab82515d496c402d8d0de826639a792abb10db1bf17f9dbaa9be7a599",
+      "size": 4493764
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_16.jsonl": {
+      "sha256": "28516546827ec46cf0612928bb8a0aa043d1a5b4d56d97e79b49383cde9e629c",
+      "size": 5152443
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_17.jsonl": {
+      "sha256": "79d871f0d9d12f53a6751fea89240c309078e76152e428da09eb0e240d081ba2",
+      "size": 5793357
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/cumulative/stage_18.jsonl": {
+      "sha256": "2cf166216bf03bd9074520aa59b8de316fa1048d40bfba8a57cc0a66fd980e8e",
+      "size": 6459047
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_00.jsonl": {
+      "sha256": "d3255733ef5da386efe8943ed6a882583359eb349a435dcda0c57df02b8ef775",
+      "size": 29207
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_01.jsonl": {
+      "sha256": "fd35f8624ba2abbe3687c6363838b2a1e8b2a7ba7b72897317177df58df3b35b",
+      "size": 29278
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_02.jsonl": {
+      "sha256": "c89a3e316499ae7fef1805de5047e0ba3f8f65c3902eede5a7442c4233a924df",
+      "size": 60913
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_03.jsonl": {
+      "sha256": "422bcfb545ced9a95c2dfa50403cf723b4f2233642e7668cb0f0a4842acc2053",
+      "size": 124836
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_04.jsonl": {
+      "sha256": "9674cb464933b964d26d4de1bc34e3c96d2c105f5e045a9cec36193d7919c890",
+      "size": 125774
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_05.jsonl": {
+      "sha256": "6eb30a64c3b3c409570e0e63a63a819b662510a18690896ce6d0efd7d498dfa0",
+      "size": 126769
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_06.jsonl": {
+      "sha256": "a5b0fd3a0f6ef2d72a1a1af9db6d8a7672d7e871e58c1f131ac5aac58963549f",
+      "size": 121050
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_07.jsonl": {
+      "sha256": "dbb2554fdf32ae84e0de49e7d80e6db695cb8beb8aa0267edf879345bb42dadb",
+      "size": 134979
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_08.jsonl": {
+      "sha256": "c7fb319e41ceed1afe86653ad5664567ba01e4acb49382217a6c5357f37690b5",
+      "size": 192095
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_09.jsonl": {
+      "sha256": "e8126b3c6eed3745e015adb170ff12d580e62fdee6e1311cb51a68312a813fa4",
+      "size": 317108
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_10.jsonl": {
+      "sha256": "ee9bba443e6baa850befa646a710c7ae2998be37b8ecf2688059c1d7eda8c2ca",
+      "size": 322832
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_11.jsonl": {
+      "sha256": "0255c85abc7d5b8b8b7f41a0fc09375336f5f53a5e0b0b11a6d845ee33114804",
+      "size": 322002
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_12.jsonl": {
+      "sha256": "d7788abee778a7e5c3604282c8049b1bb30152b58a729b202df8966a1f77c9eb",
+      "size": 676650
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_13.jsonl": {
+      "sha256": "e71b89ea085a61fe398dd604d8e69b29620111f370f896db07fb1062afb0b917",
+      "size": 614498
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_14.jsonl": {
+      "sha256": "9aa16d0a17339cc5fc8b92ac19a393ae7a2ead38df71347dc31df33e0b9b0914",
+      "size": 624295
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_15.jsonl": {
+      "sha256": "7947e99f0fa37258c484aff367ded2c8122e7693e976707180f3fbc49677d834",
+      "size": 671478
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_16.jsonl": {
+      "sha256": "192b7de1a50d5f36594d3db894d00bca1055906d25851e7ef17890246f31ef46",
+      "size": 658679
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_17.jsonl": {
+      "sha256": "fb1b44d71353637f1102b57e2695c25681503fa5699ea6c13661247d99187f00",
+      "size": 640914
+    },
+    "all_setting/curriculum_19stage_10025_imagebind/stage_sets/incremental/stage_18.jsonl": {
+      "sha256": "79fe75bf3e8c7c09357de47a82f594a430fef52ea1af4d1abc3b25f21eea9f91",
+      "size": 665690
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/Isaaclab_19stage_10025_pixel_l1_stage_manifest.json": {
+      "sha256": "78d6f4b8a664dd765a36f1b50c24b58197c647458d0ea64ad103f1b739a06cd9",
+      "size": 1311407
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/Isaaclab_19stage_10025_pixel_l1_with_distance.jsonl": {
+      "sha256": "6bf5938fe9639f58938bf3c2d92e09a7cb7cde963ae3e8dabc596211e61285ab",
+      "size": 6236869
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_00.jsonl": {
+      "sha256": "362420de22ca602f64c8b883d1de58895af34156e48ba9b52db0ea90fdfea28c",
+      "size": 28260
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_01.jsonl": {
+      "sha256": "87d9ba01d2398119ff84547d58ec3fab763187e5953389cf8a903b924b009cc4",
+      "size": 56813
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_02.jsonl": {
+      "sha256": "1de20fc3746b9df7cd054b5ec40ef2435edf05af9889ad9d412aac77b7f4d4ee",
+      "size": 116611
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_03.jsonl": {
+      "sha256": "72efb8858d2b0046eb28a6692aace5ea9319f5972c1e7a5636b2eba8ede84b72",
+      "size": 240066
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_04.jsonl": {
+      "sha256": "2743c26b2d44d450b11a6352a68e9fb427d32396f57638f8450b6d9c6ca185e6",
+      "size": 363313
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_05.jsonl": {
+      "sha256": "c52382f1782024c4d655bc7b771b7b7b3b3235ec276542dcae8b4f5f8d15efc3",
+      "size": 486721
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_06.jsonl": {
+      "sha256": "cc1e5867d8a53a2e9f66bf871d39c600e9e3918ca8f3f3dfb2fafa33a78ed364",
+      "size": 602797
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_07.jsonl": {
+      "sha256": "033729bc61bb6612e0bda3810916c4d5067082fe394846f0738413c0666b7665",
+      "size": 732590
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_08.jsonl": {
+      "sha256": "506828b7ac27a920b7d5d30107184f26eef964de9418471c9807231718f6e888",
+      "size": 914276
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_09.jsonl": {
+      "sha256": "e8c1ca873791c937a56855036df106ae7f8c3d9f99c017b2fcf038cebbfdb9ce",
+      "size": 1223475
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_10.jsonl": {
+      "sha256": "123a39e5ce62d9563b8f8c2061e2abf614dd59626644f3382da395f5a540acb0",
+      "size": 1536978
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_11.jsonl": {
+      "sha256": "9fbedbbed50313cf6a4b6fd2a76792d13b5b7e2f4620cc0ceee9fc28344c3e2e",
+      "size": 1850545
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_12.jsonl": {
+      "sha256": "6a52e97c76d4f9a7447c148fd14780a2b4305c47956bf83ac8590654bb7faa5a",
+      "size": 2502219
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_13.jsonl": {
+      "sha256": "4cb6361e5e9c6be79d8d075c2d366dead2b0492dc363cdb2c7db25c495dd6610",
+      "size": 3093853
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_14.jsonl": {
+      "sha256": "b860a8cf5ba898081fde5be9f7f01f185b9ccd31fe69f7c09f902193486c7183",
+      "size": 3695513
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_15.jsonl": {
+      "sha256": "bded401bb179b1d518c358672446705607e00c3996625268f089c816b61e4d12",
+      "size": 4343300
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_16.jsonl": {
+      "sha256": "ec70f88a25861528e3315e78689db73aec80658447e421f9e92252f459ba89d3",
+      "size": 4975828
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_17.jsonl": {
+      "sha256": "d44d26cedf1f2a8e70960e6cb9825cd544f05b5f6e173e00da89d289a5f473c5",
+      "size": 5591932
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/cumulative/stage_18.jsonl": {
+      "sha256": "6bf5938fe9639f58938bf3c2d92e09a7cb7cde963ae3e8dabc596211e61285ab",
+      "size": 6236869
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_00.jsonl": {
+      "sha256": "362420de22ca602f64c8b883d1de58895af34156e48ba9b52db0ea90fdfea28c",
+      "size": 28260
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_01.jsonl": {
+      "sha256": "91728f83f9723ac161923b205e3deead3ec9c2af46e28f1a504bfb72085771a5",
+      "size": 28553
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_02.jsonl": {
+      "sha256": "56537be8c60ee8ae73a92367b0e8754434a644a27e4d8fcabf5f51fcdec92006",
+      "size": 59798
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_03.jsonl": {
+      "sha256": "3f750560639aa41ea56ac779c770758469673f4144b986412a09bb8ea31d1ec5",
+      "size": 123455
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_04.jsonl": {
+      "sha256": "da22f470e78fb706d5d2239626e339d2fb561bf6b812a44db7571380c90f2c55",
+      "size": 123247
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_05.jsonl": {
+      "sha256": "607afff62f5c9c5595633001640c0a7f5b4ff38a95653f1c061595372558cc5f",
+      "size": 123408
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_06.jsonl": {
+      "sha256": "ca9ef73cbba728c6a0a9d6342e923354819a2f1f6a38f4043cdf6b695d7eac01",
+      "size": 116076
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_07.jsonl": {
+      "sha256": "10ffa640a6a636cc626e27c97a3fef1f779555b0922ddbdca52fc3134d66f946",
+      "size": 129793
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_08.jsonl": {
+      "sha256": "30564774af4a9f8f80be2f0e3adf81a25aacce0967ff4354596fc52ea56a014b",
+      "size": 181686
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_09.jsonl": {
+      "sha256": "5bce5df0f5199d4595812e809e6cebb5fdeb87755536890b540f58785d508b66",
+      "size": 309199
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_10.jsonl": {
+      "sha256": "88603dd5735e03bd177697be49d131480a041191e2e41668f07ad88ada9f5da4",
+      "size": 313503
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_11.jsonl": {
+      "sha256": "e5a82de1b7851672f308c6c6d244ec77e2e619100a996b845c0061d34399ccf7",
+      "size": 313567
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_12.jsonl": {
+      "sha256": "14a0403ef11ec862db463939c2456b3526c0211a4631c3a69c7634c6be1233b6",
+      "size": 651674
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_13.jsonl": {
+      "sha256": "010c0a83d7b3b1544a4673ce7a94fca57fc97c2676caf75cf7589f8839513290",
+      "size": 591634
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_14.jsonl": {
+      "sha256": "bdf3f93511522ee4e6b6d0290444e3d286f20693b138cbf04cd3d638005c04c5",
+      "size": 601660
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_15.jsonl": {
+      "sha256": "ae12e1ea48cd796d529f6e8aa62e7df64df1338d2f5709b24b690a1513adb1e0",
+      "size": 647787
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_16.jsonl": {
+      "sha256": "392b3ff6140d714e01fac52b80ce66060ef0c21a37b3c9e3f5d4a61c49a85a78",
+      "size": 632528
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_17.jsonl": {
+      "sha256": "29f9779833e5e6a0aae5a59788afff520c1ee3e5fbe85bcd64f0b912cac07722",
+      "size": 616104
+    },
+    "all_setting/curriculum_19stage_10025_pixel_l1/stage_sets/incremental/stage_18.jsonl": {
+      "sha256": "d8eeb3b9c93f3c28cc623031fc3636c49ac74095b165c7fe72a520749bcf7be7",
+      "size": 644937
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/Isaaclab_19stage_10025_siglip2_stage_manifest.json": {
+      "sha256": "8a75cefbb4d387ac00835334244c03438cd72d0bf5057efdfac2cc45cd02de1d",
+      "size": 1311559
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/Isaaclab_19stage_10025_siglip2_with_distance.jsonl": {
+      "sha256": "2b52cebf85c30cfcea9d51d224f7488b01efc4b17c9bcd546b9ccc4752c5a9a0",
+      "size": 6570758
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_00.jsonl": {
+      "sha256": "622a8c9c379d13012d95a16c1ad818efad84050eb3f32548cbf3c0562fda737f",
+      "size": 29917
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_01.jsonl": {
+      "sha256": "bb3fd6f9b92943b8e3fc03d369403c304ec1aae5bcc02798b5b46b4cdc207737",
+      "size": 60025
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_02.jsonl": {
+      "sha256": "989058414f413b5674428c2f650a61a25d113fcf83bc2c4d65c68146f5d39034",
+      "size": 121750
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_03.jsonl": {
+      "sha256": "7c8675b6aec4c2b15e47d58a78953c4757b8a3d054f6d87fdd69b7bbb2363ae8",
+      "size": 251990
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_04.jsonl": {
+      "sha256": "10d6857cbfd30e72254d2b291973b4c5f5ce6107add81413ea5acd6aea1d5691",
+      "size": 381962
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_05.jsonl": {
+      "sha256": "44c93e305c071ce5a1e5c4f296c2c19086a7cac8f998a1830546ed9f33bc6b6d",
+      "size": 509637
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_06.jsonl": {
+      "sha256": "92226769ca3272fc92cde896453f218e92285ff50f6a097483914d089c9fd934",
+      "size": 631304
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_07.jsonl": {
+      "sha256": "c4350089d75ca1420c1c27e6b5b0a878cbaa0b3898cca5f9ce106c22046f0818",
+      "size": 768068
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_08.jsonl": {
+      "sha256": "be81b44bb066b6dd7c4745b7d115d2246f69e2ffee815164aef80ba481e78cc0",
+      "size": 962566
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_09.jsonl": {
+      "sha256": "f97067c834521b93924692f578991a444ad42d072d5e38b185faff941442c927",
+      "size": 1285383
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_10.jsonl": {
+      "sha256": "cbec3b5234c22991047e30f3fc5982efa4e102c295c2771d8d8d5cdfaab47b0e",
+      "size": 1614784
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_11.jsonl": {
+      "sha256": "dcbd37c6df0127bf7a76338dd2f2df3fe38fc34f16ceb64eb9dd83d6aa39a1ac",
+      "size": 1942032
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_12.jsonl": {
+      "sha256": "91f48ecf47367dfffdcaef195ccdd2419886f9b7b68f3a2e124b8286550887b6",
+      "size": 2629334
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_13.jsonl": {
+      "sha256": "3c1a3f21cc473ad5e756932847a968696f54dc96c545acdd05653ab8ba0f5401",
+      "size": 3254456
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_14.jsonl": {
+      "sha256": "58aa015db0fa5ce941dce5b3467bbd8a331a74f3a42f8bb077903a3b4fca2c1c",
+      "size": 3890662
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_15.jsonl": {
+      "sha256": "5d4e99e64c28e36173cfcbf3390e52a8fef0be0f451a2916dc59ef8491c5e771",
+      "size": 4573894
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_16.jsonl": {
+      "sha256": "afd9a69b18aecf58ac7e9cb58aba570e50fe4eff732bf0816cbd718ca30d42fe",
+      "size": 5243698
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_17.jsonl": {
+      "sha256": "b7b7e03ba0abf5726d2ec9db58d0f21dd3f859d37c1919905419d1b4801dc37b",
+      "size": 5894800
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/cumulative/stage_18.jsonl": {
+      "sha256": "2b52cebf85c30cfcea9d51d224f7488b01efc4b17c9bcd546b9ccc4752c5a9a0",
+      "size": 6570758
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_00.jsonl": {
+      "sha256": "622a8c9c379d13012d95a16c1ad818efad84050eb3f32548cbf3c0562fda737f",
+      "size": 29917
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_01.jsonl": {
+      "sha256": "0821948fe401c4a0e9edf6d318034d60cd89fd4996d92f5b5f677b774d8a98b1",
+      "size": 30108
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_02.jsonl": {
+      "sha256": "73ffffced2ecfd6e3fddc1e67d5e07f3c63beaf81598af006528aec36ff638e1",
+      "size": 61725
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_03.jsonl": {
+      "sha256": "321b9dae2555ce818fa9b71b400aa8d6027acf99c8bc0599c879453c05387968",
+      "size": 130240
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_04.jsonl": {
+      "sha256": "d988715f46a86e0932b30b77ed6bfb8da73837cba6e1d9ffae9a6f4e0dc87cd7",
+      "size": 129972
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_05.jsonl": {
+      "sha256": "dc2b0ef94c8f6cf9e829a1fd02aec62ed4e0ec68914757264eef252fb1dc2efd",
+      "size": 127675
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_06.jsonl": {
+      "sha256": "fba97ed66d4c3e1ac234e51c1ab99614bc4d6cb9b0e8d7db106393f1d2be57b9",
+      "size": 121667
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_07.jsonl": {
+      "sha256": "123d4208c929ebe4e463e3ddd21624bca9cea6c70648b6c96364e4c64be6d4a1",
+      "size": 136764
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_08.jsonl": {
+      "sha256": "71383c6e928b1bc3617cd92a1edae58b8161013b7de2b16189ad6a1f880b1bb8",
+      "size": 194498
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_09.jsonl": {
+      "sha256": "d8675b6d426d53a1e25ac4fe2d1292c1981ba3b5eeb20d5391207114d7fa4475",
+      "size": 322817
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_10.jsonl": {
+      "sha256": "4af411537c171d1166a9cc717d15bf7a14afb412e3a108a48ab96015101a5aef",
+      "size": 329401
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_11.jsonl": {
+      "sha256": "046815a210cef511a19f693268f76007d9ccd65fab7d86682102776416a9349a",
+      "size": 327248
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_12.jsonl": {
+      "sha256": "b53f64a34996a0abe42129c3464e5be3ce02bb5766b20352c524ef7ecc79ea6e",
+      "size": 687302
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_13.jsonl": {
+      "sha256": "5c28b31746c991584dafa12472e2222d6a717fa901740f29206153f1cd561b8b",
+      "size": 625122
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_14.jsonl": {
+      "sha256": "51f860be96e09110730d1d1d854083d314d7fcaf439c8c3edaa8d0c775594577",
+      "size": 636206
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_15.jsonl": {
+      "sha256": "2ef0d198f1eaf5ff4c3ecf94c4aeedd25bd0092977645c30723ef1ed0cde1613",
+      "size": 683232
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_16.jsonl": {
+      "sha256": "128a4f09bd1926843b4c76351c0fe85b23ba9cd454a0b216250157983be69ed0",
+      "size": 669804
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_17.jsonl": {
+      "sha256": "ae09494c5784d64dc41d049fde84590dc5a3d1a98ea6afd8d29e96d604455d35",
+      "size": 651102
+    },
+    "all_setting/curriculum_19stage_10025_siglip2/stage_sets/incremental/stage_18.jsonl": {
+      "sha256": "04fd807752ab81b844fb86f7878f4d8c06d5eb89d5613e5b1eb004f8c4c86587",
+      "size": 675958
+    },
+    "all_setting/curriculum_19stage_10025_structured/Isaaclab_19stage_10025_structured_stage_manifest.json": {
+      "sha256": "b27218eeb896d9bf879e163b84d4e7d1d9046c960bbcf6215cd139f1d402e901",
+      "size": 1311261
+    },
+    "all_setting/curriculum_19stage_10025_structured/Isaaclab_19stage_10025_structured_with_distance.jsonl": {
+      "sha256": "4046a55640f65c1bba08a512db68316640f4ec4725f8dc295a5505a8ddd76ac2",
+      "size": 12397938
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_00.jsonl": {
+      "sha256": "f249d3fd2aa18aee1983da82de3fb596c98e14577a8e07e5939b95eb68864b74",
+      "size": 52194
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_01.jsonl": {
+      "sha256": "e8d3fc4c4b6d1aa69e9b825bafabe26d27eeb7d6da17ca708c93367671df3066",
+      "size": 103100
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_02.jsonl": {
+      "sha256": "c5be9e7921839a40506c067803745a05e9687ed432600517101f7a85478b73df",
+      "size": 207382
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_03.jsonl": {
+      "sha256": "43712e8ab80c0aeb7741bad4f358e5ffa4e3355d1ae73559a53d79e44c8528a2",
+      "size": 432395
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_04.jsonl": {
+      "sha256": "41831b3bb0c10f4ce936d810bf39e5267194a04136c1188b51bdea05fea900b1",
+      "size": 657026
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_05.jsonl": {
+      "sha256": "22ae7a4044459b791adda3b4c77c21678a88eb30958c8f1ae2c5bb6a77d82a7d",
+      "size": 881078
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_06.jsonl": {
+      "sha256": "b90cceb7ab5be6bd8717f85beee226797892479b0c82fe57f602dd9640296af6",
+      "size": 1095447
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_07.jsonl": {
+      "sha256": "1f04bde1367ae31fa2616ec29e96b63e81d54c8913ee1d48d1d044f814a6b972",
+      "size": 1340349
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_08.jsonl": {
+      "sha256": "ccb1ff395b635c74d58ad39dc4b9fe5648cfa965d0664e159df06e9542f1e9c8",
+      "size": 1690738
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_09.jsonl": {
+      "sha256": "13c106f4c89ae5fdc632890a95b5511ccc438fbc811492ceec37dcfe9431451d",
+      "size": 2297886
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_10.jsonl": {
+      "sha256": "5dc5f454087ea4635fdeaec977416b0bc516b2917a52c2b868fb0cce2ece9eb3",
+      "size": 2924442
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_11.jsonl": {
+      "sha256": "10f25c160ef4b54237e05f3e27d4e0c42a4ece78b02e80a0e90ee84f6272ff97",
+      "size": 3544479
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_12.jsonl": {
+      "sha256": "d79e0a2debdc333488c33bca8a00094b29bac7919ea8b2a0785f6c7204b1ae27",
+      "size": 4861459
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_13.jsonl": {
+      "sha256": "dbd76f7ab93bc0c1cd8a893c2d3e063652e51e325ef4f8f30fa58b8875b87c55",
+      "size": 6059054
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_14.jsonl": {
+      "sha256": "e5ae4b225f6ad7f83ab0959153738608a7eb44ec6f645424f4a44aaef841727a",
+      "size": 7271071
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_15.jsonl": {
+      "sha256": "b3a0ca9eed9505cda6a82f48c2238c44634e130aee0aaf0e7e9e1756a93d2e08",
+      "size": 8580185
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_16.jsonl": {
+      "sha256": "2001fbca4b5946889c9819228921cc770b2b9520cd98936930ac94d3202f96e3",
+      "size": 9861298
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_17.jsonl": {
+      "sha256": "db596678e107579f1ac1444128cc78545df5ef7621b4e6a1ccc3b370c4fbe15e",
+      "size": 11107195
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/cumulative/stage_18.jsonl": {
+      "sha256": "4046a55640f65c1bba08a512db68316640f4ec4725f8dc295a5505a8ddd76ac2",
+      "size": 12397938
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_00.jsonl": {
+      "sha256": "f249d3fd2aa18aee1983da82de3fb596c98e14577a8e07e5939b95eb68864b74",
+      "size": 52194
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_01.jsonl": {
+      "sha256": "2e6486de0e984cdc087a7c36bf18bd8c2b6541979860efc1ec84974112404edd",
+      "size": 50906
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_02.jsonl": {
+      "sha256": "3c206fba1fe369c4157d457f6341f4be92c7ca0fe6c8d2ffb01990d853b2056c",
+      "size": 104282
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_03.jsonl": {
+      "sha256": "7f2a160648495f8a843c8e8298d43516759082d1ac2f257b40999c235da0f0b9",
+      "size": 225013
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_04.jsonl": {
+      "sha256": "07923e7a208306ac09af035c5e2438afa5abc6354a45825403c12fb9e57f322b",
+      "size": 224631
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_05.jsonl": {
+      "sha256": "a6c952e98c6d35868ac016ca7c04bd6a113e2ee63f57ddf27eb9893005248bd5",
+      "size": 224052
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_06.jsonl": {
+      "sha256": "dc7dabc6f4e03416239a2ca9585d0badb7008401d93b3a250e072aab63fdcea6",
+      "size": 214369
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_07.jsonl": {
+      "sha256": "44f715eb54b910c519dd7e7228d4126adc7052e5386dff04464c1469805a7499",
+      "size": 244902
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_08.jsonl": {
+      "sha256": "0d0737387eab3edc678ae496aa9461d3c471c23bb7896216a1b6182cd698cbcc",
+      "size": 350389
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_09.jsonl": {
+      "sha256": "0c87ec667d6308d0c9e96e592c698b289e548dd86e19669bf1ca1ff5f8195c29",
+      "size": 607148
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_10.jsonl": {
+      "sha256": "dafb7a4711cc45bb8de281aa342830c1cafc002f4343601261abd89faa9ef8ea",
+      "size": 626556
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_11.jsonl": {
+      "sha256": "b68121cb3609ca9199acfa4dde985f07e57445feeade56f5f0c1106b37e81f1e",
+      "size": 620037
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_12.jsonl": {
+      "sha256": "6d1b580603c9e60c3aa4668582e6025cf0a5b92a8ea9786a53e557879e3d3429",
+      "size": 1316980
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_13.jsonl": {
+      "sha256": "24e9462c9479f3122a1ebf81e431567c918b1a9030abc9a2b26e97b51868266c",
+      "size": 1197595
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_14.jsonl": {
+      "sha256": "0b7063a9ca22e45ee5e929dc2710f82f5469040ec16260da2cea9f94ee0fd0c2",
+      "size": 1212017
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_15.jsonl": {
+      "sha256": "b98d31eb0f650780f75e52c7d8fc2a77e31d6d6d8e9cb69c6b469eedc90d39c6",
+      "size": 1309114
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_16.jsonl": {
+      "sha256": "586395298616c3d0531f1b332e668e95ff7ac0e78845f8cefa7a6d8958993879",
+      "size": 1281113
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_17.jsonl": {
+      "sha256": "715c25fcb2c67aab1d5fb38660ba656e05a3d63bdc36abed5fb2585caaa94be9",
+      "size": 1245897
+    },
+    "all_setting/curriculum_19stage_10025_structured/stage_sets/incremental/stage_18.jsonl": {
+      "sha256": "0b99a8c2f4cb28d669d408f34e05d0b7889e84e3ea62c363238dc8ad7ddc941f",
+      "size": 1290743
+    },
+    "all_setting/curriculum_nearest100/Isaaclab_nearest100_to_initial_summary.json": {
+      "sha256": "7664692f82d08fa34da7076d051125eb41292061206ed7673d63462bceb3abf6",
+      "size": 2064
+    },
+    "all_setting/curriculum_nearest100/Isaaclab_nearest100_to_initial_with_distance.jsonl": {
+      "sha256": "f0863625fdffb6e2aaaef167d0846c4f9f38dc1c30c6bc7f8cd53ffd3ab8cf75",
+      "size": 47102
+    },
+    "all_setting/eval_subsets/Isaaclab_eval_subset5000_cosine_distance_near1000_mid2000_midfar2000_from0.70.jsonl": {
+      "sha256": "c67c52c69c393fb90b294117f14509115a9941519e3947bd8af4b6d7ead25554",
+      "size": 2858774
+    },
+    "all_setting/eval_subsets/Isaaclab_eval_subset5000_cosine_distance_near1000_mid2000_midfar2000_from0.70.manifest.json": {
+      "sha256": "fc0040eb502b3eacb1dc46f0f6306ec4e0eb4663e383fe5b8655b38a2e80579e",
+      "size": 1298
+    },
+    "all_setting/eval_subsets/Isaaclab_rank21_cosine_distance.jsonl": {
+      "sha256": "7637b1592c809a5488b9c4fe3ce2bd488347a5ccc3b084fd924598b0476cbe80",
+      "size": 431
+    },
+    "all_setting/eval_subsets/Isaaclab_rank21_cosine_distance.manifest.json": {
+      "sha256": "653806c84edcca321d730206be1437b8957d814fb1f37836c167484b8e92bd95",
+      "size": 1259
+    },
+    "all_setting/eval_subsets/base_table_cube_camera_25x25_ijepa_grid/camera_axis_sorted_by_ijepa_distance.json": {
+      "sha256": "a1e2dcf1d3feac626cc2c7e3129117fba3140170f4666c43f94b35682c4915b4",
+      "size": 10511
+    },
+    "all_setting/eval_subsets/base_table_cube_camera_25x25_ijepa_grid/cube_axis_sorted_by_ijepa_distance.json": {
+      "sha256": "6e185f255e19ca9ebe6bb512afa1edf4a70c5a95ae27a7ef62dfac50bede9e29",
+      "size": 16274
+    },
+    "all_setting/eval_subsets/base_table_cube_camera_25x25_ijepa_grid/matrix_25x25_long.jsonl": {
+      "sha256": "983a71e0e806f58b9b9c1552f58ff45da8e46ca495ab80e36dfaf1086d287ea6",
+      "size": 352680
+    },
+    "all_setting/eval_subsets/base_table_cube_camera_25x25_ijepa_grid/summary.json": {
+      "sha256": "336b9469f683e9df65f5d035c22491409d245c6ee6f8fca47751adb6853b2b02",
+      "size": 8276
+    },
+    "all_setting/eval_subsets/base_table_cube_camera_625_with_ijepa_distance.jsonl": {
+      "sha256": "47692fd2887102aa6ff034be09c982dabed167f980765ccb26748aa809e1233c",
+      "size": 520286
+    },
+    "all_setting/eval_subsets/base_table_cube_camera_changed_only_624_with_ijepa_distance.jsonl": {
+      "sha256": "f1d3ba89a1598ee5addfd6edf94b9f994dd2b6457b6f7fee49615575f07855dc",
+      "size": 519511
+    },
+    "all_setting/eval_subsets/base_table_cube_camera_filter_summary.json": {
+      "sha256": "0fa795d28b64a5433d85c06f93bf42777976c25f473898b6b0958f08e9a0499e",
+      "size": 1291
+    },
+    "all_setting/light_setting_50.jsonl": {
+      "sha256": "3b9f60cd12cba2f6c592d819efe2c1378aed431325d4698522fabf2745a36e60",
+      "size": 6590
+    },
+    "all_setting/table_cam_circle_50.jsonl": {
+      "sha256": "a830180ca33d3904959583fa90fee29dd09fe917e7a73e55afc4f1e771b267cc",
+      "size": 12962
+    },
+    "all_setting/table_cam_robot_table_mid_circle_50.jsonl": {
+      "sha256": "e3301cbd93b65a0a852d23b15b45b6fe6a5799e9602b42df8b80a285767c5e6a",
+      "size": 24144
+    }
+  },
+  "format_version": 1,
+  "referenced_table_assets": [
+    "table_Amber.usd",
+    "table_Aqua_Dark.usd",
+    "table_Blackened.usd",
+    "table_Blue_Steel.usd",
+    "table_Brown_Umber.usd",
+    "table_Burnt_Orange.usd",
+    "table_Champagne.usd",
+    "table_Charcoal.usd",
+    "table_Cobalt.usd",
+    "table_Coral.usd",
+    "table_Crimson.usd",
+    "table_Cyan.usd",
+    "table_Deep_Blue.usd",
+    "table_Deep_Teal.usd",
+    "table_Dusty_Pink.usd",
+    "table_Emerald.usd",
+    "table_Forest.usd",
+    "table_Graphite.usd",
+    "table_Gunmetal.usd",
+    "table_Ice_Blue.usd",
+    "table_Indigo.usd",
+    "table_Lavender_Gray.usd",
+    "table_Magenta.usd",
+    "table_Moss_Green.usd",
+    "table_Navy.usd",
+    "table_Nickel.usd",
+    "table_Ochre.usd",
+    "table_Olive_Gold.usd",
+    "table_Pale_Gold.usd",
+    "table_Patina_Green.usd",
+    "table_Pewter.usd",
+    "table_Plum.usd",
+    "table_Purple.usd",
+    "table_Raspberry.usd",
+    "table_Red_Brown.usd",
+    "table_Rose_Gold.usd",
+    "table_Ruby_Red.usd",
+    "table_Sage.usd",
+    "table_Salmon.usd",
+    "table_Sepia.usd",
+    "table_Sky_Metal.usd",
+    "table_Slate.usd",
+    "table_Soft_Silver.usd",
+    "table_Teal.usd",
+    "table_Titanium.usd",
+    "table_Violet.usd",
+    "table_Warm_Bronze.usd",
+    "table_White_Gold.usd",
+    "table_Zinc.usd",
+    "table_base.usd",
+    "table_copper.usd"
+  ],
+  "source_root_name": "assets_isaaclab",
+  "total_size": 1355666048
+}

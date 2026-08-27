@@ -31,6 +31,7 @@ RLinf 提供了一整套**可复现的 SOTA 强化学习配置**，用户无需�
    :maxdepth: 1
 
    installation
+   isaacsim6-split
    vla
    llm
    distribute
