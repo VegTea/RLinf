@@ -2,10 +2,7 @@ diff --git a/source/isaaclab/isaaclab/utils/assets.py b/source/isaaclab/isaaclab
 index 4e30f2f..824b017 100644
 --- a/source/isaaclab/isaaclab/utils/assets.py
 +++ b/source/isaaclab/isaaclab/utils/assets.py
-@@ -36,7 +36,13 @@ _MDL_RELATIVE_IMPORT_RE = re.compile(
- 
- 
- def _parse_kit_asset_root() -> str:
+@@ -39,2 +39,8 @@ def _parse_kit_asset_root() -> str:
 -    """Parse ``persistent.isaac.asset_root.cloud`` from ``apps/isaaclab.python.kit``."""
 +    """Resolve the Isaac asset root, preferring the explicit local override."""
 +    # RLinf can provide a complete local Isaac Sim asset mirror. Resolve this
@@ -15,5 +12,3 @@ index 4e30f2f..824b017 100644
 +    if asset_root_override:
 +        return asset_root_override.rstrip("/")
      _ISAACLAB_ROOT = os.path.join(os.path.dirname(__file__), *([".."] * 4))
-     kit_path = os.path.normpath(os.path.join(_ISAACLAB_ROOT, "apps", "isaaclab.python.kit"))
-     with open(kit_path) as f:
