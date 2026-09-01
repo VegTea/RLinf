@@ -51,6 +51,14 @@ class IsaaclabBaseEnv(gym.Env):
         self.total_num_processes = total_num_processes
         self.worker_info = worker_info
         self.video_cfg = cfg.video_cfg
+        # These flags are consumed while the child process constructs IsaacLab,
+        # so initialize them before spawning SubProcIsaacLabEnv.
+        self.enable_depth_observations = bool(
+            cfg.init_params.get("enable_depth_observations", True)
+        )
+        self.render_only_at_chunk_end = bool(
+            cfg.init_params.get("render_only_at_chunk_end", False)
+        )
         self._init_isaaclab_env()
         self.device = self.env.device()
 
@@ -69,6 +77,10 @@ class IsaaclabBaseEnv(gym.Env):
             self.device
         )
         self._current_scenario_records: list[dict | None] = [None] * self.num_envs
+        self._episode_scenario_records: dict[tuple[int, int], dict] = {}
+        self._retain_episode_scenario_records = bool(
+            cfg.get("per_episode_result_dir", None)
+        )
 
         self._init_metrics()
         self._elapsed_steps = torch.zeros(self.num_envs, dtype=torch.int32).to(
@@ -95,6 +107,9 @@ class IsaaclabBaseEnv(gym.Env):
         self.success_once = torch.zeros(self.num_envs, dtype=bool).to(self.device)
         self.fail_once = torch.zeros(self.num_envs, dtype=bool).to(self.device)
         self.returns = torch.zeros(self.num_envs).to(self.device)
+        self._first_success_steps = torch.full(
+            (self.num_envs,), -1, dtype=torch.int64, device=self.device
+        )
 
     def _reset_metrics(self, env_idx=None):
         if env_idx is not None:
@@ -104,20 +119,27 @@ class IsaaclabBaseEnv(gym.Env):
             self.success_once[mask] = False
             self.fail_once[mask] = False
             self.returns[mask] = 0
+            self._first_success_steps[mask] = -1
             self._elapsed_steps[env_idx] = 0
         else:
             self.prev_step_reward[:] = 0
             self.success_once[:] = False
             self.fail_once[:] = False
             self.returns[:] = 0.0
+            self._first_success_steps[:] = -1
             self._elapsed_steps[:] = 0
 
     def _record_metrics(self, step_reward, terminations, infos):
         episode_info = {}
         self.returns += step_reward
+        first_success_mask = (~self.success_once) & (step_reward > 0)
+        self._first_success_steps[first_success_mask] = self.elapsed_steps[
+            first_success_mask
+        ].to(torch.int64)
         self.success_once = self.success_once | (step_reward > 0)
         # batch level
         episode_info["success_once"] = self.success_once.clone()
+        episode_info["first_success_step"] = self._first_success_steps.clone()
         episode_info["return"] = self.returns.clone()
         episode_info["episode_len"] = self.elapsed_steps.clone()
         episode_info["reward"] = episode_info["return"] / episode_info["episode_len"]
@@ -247,7 +269,22 @@ class IsaaclabBaseEnv(gym.Env):
     def _record_scenario_records(self, scenario_records):
         for env_id, record in scenario_records.items():
             if 0 <= env_id < self.num_envs:
+                record = copy.deepcopy(record)
                 self._current_scenario_records[env_id] = record
+                if self._retain_episode_scenario_records:
+                    episode_id = int(self._episode_ids[env_id].item())
+                    self._episode_scenario_records[(env_id, episode_id)] = record
+
+    def get_episode_scenario_record(
+        self, env_id: int, episode_id: int, *, pop: bool = False
+    ):
+        """Return the post-reset scenario captured for an evaluated episode."""
+        key = (int(env_id), int(episode_id))
+        if pop:
+            record = self._episode_scenario_records.pop(key, None)
+        else:
+            record = self._episode_scenario_records.get(key)
+        return copy.deepcopy(record) if record is not None else None
 
     def _to_numpy_image_batch(self, image_tensor):
         if isinstance(image_tensor, torch.Tensor):
@@ -512,8 +549,19 @@ class IsaaclabBaseEnv(gym.Env):
                 if getattr(snapshot_cfg, "save_metadata", True):
                     manifest_fp.write(json.dumps(record, ensure_ascii=True) + "\n")
 
-    def step(self, actions=None, auto_reset=True):
-        obs, step_reward, terminations, truncations, infos = self.env.step(actions)
+    def step(
+        self,
+        actions=None,
+        auto_reset=True,
+        *,
+        render_enabled=True,
+        return_observation=True,
+    ):
+        obs, step_reward, terminations, truncations, infos = self.env.step(
+            actions,
+            render_enabled=render_enabled,
+            return_observation=return_observation,
+        )
 
         step_reward = step_reward.clone()
         terminations = terminations.clone()
@@ -529,10 +577,11 @@ class IsaaclabBaseEnv(gym.Env):
         infos = self._record_metrics(
             step_reward, terminations, {}
         )  # return infos is useless
-        self._save_success_hit_snapshots(
-            obs, success_hits, infos, terminations, truncations
-        )
-        if self.trajectory_recorder is not None:
+        if obs is not None:
+            self._save_success_hit_snapshots(
+                obs, success_hits, infos, terminations, truncations
+            )
+        if self.trajectory_recorder is not None and obs is not None:
             self.trajectory_recorder.record_step(
                 actions=actions,
                 raw_obs=obs,
@@ -547,7 +596,7 @@ class IsaaclabBaseEnv(gym.Env):
             infos["episode"]["success_at_end"] = terminations
             terminations[:] = False
 
-        obs = self._wrap_obs(obs)
+        obs = self._wrap_obs(obs) if obs is not None else None
 
         _auto_reset = auto_reset and self.auto_reset  # always False
         if dones.any() and _auto_reset:
@@ -571,10 +620,22 @@ class IsaaclabBaseEnv(gym.Env):
 
         raw_chunk_terminations = []
         raw_chunk_truncations = []
+        final_snapshot_cfg = getattr(self.cfg, "final_snapshot_cfg", None)
+        needs_intermediate_observations = self.trajectory_recorder is not None or bool(
+            final_snapshot_cfg is not None
+            and getattr(final_snapshot_cfg, "enabled", False)
+        )
         for i in range(chunk_size):
             actions = chunk_actions[:, i]
+            render_enabled = (
+                not self.render_only_at_chunk_end or i == chunk_size - 1
+            )
+            return_observation = render_enabled or needs_intermediate_observations
             extracted_obs, step_reward, terminations, truncations, infos = self.step(
-                actions, auto_reset=False
+                actions,
+                auto_reset=False,
+                render_enabled=render_enabled,
+                return_observation=return_observation,
             )
             obs_list.append(extracted_obs)
             infos_list.append(infos)

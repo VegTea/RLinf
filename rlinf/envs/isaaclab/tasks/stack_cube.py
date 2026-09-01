@@ -149,26 +149,36 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
             isaac_env_cfg.scene.wrist_cam.width = self.cfg.init_params.wrist_cam.width
             isaac_env_cfg.scene.table_cam.height = self.cfg.init_params.table_cam.height
             isaac_env_cfg.scene.table_cam.width = self.cfg.init_params.table_cam.width
-            from isaaclab.managers import ObservationTermCfg as ObsTerm
-            from isaaclab.managers import SceneEntityCfg
-            from isaaclab_tasks.manager_based.manipulation.stack import mdp
+            antialiasing_mode = self.cfg.init_params.get(
+                "antialiasing_mode", None
+            )
+            if antialiasing_mode is not None:
+                isaac_env_cfg.sim.render.antialiasing_mode = str(antialiasing_mode)
 
-            isaac_env_cfg.observations.policy.table_cam_depth = ObsTerm(
-                func=mdp.image,
-                params={
-                    "sensor_cfg": SceneEntityCfg("table_cam"),
-                    "data_type": "distance_to_image_plane",
-                    "normalize": False,
-                },
-            )
-            isaac_env_cfg.observations.policy.wrist_cam_depth = ObsTerm(
-                func=mdp.image,
-                params={
-                    "sensor_cfg": SceneEntityCfg("wrist_cam"),
-                    "data_type": "distance_to_image_plane",
-                    "normalize": False,
-                },
-            )
+            if self.enable_depth_observations:
+                from isaaclab.managers import ObservationTermCfg as ObsTerm
+                from isaaclab.managers import SceneEntityCfg
+                from isaaclab_tasks.manager_based.manipulation.stack import mdp
+
+                isaac_env_cfg.observations.policy.table_cam_depth = ObsTerm(
+                    func=mdp.image,
+                    params={
+                        "sensor_cfg": SceneEntityCfg("table_cam"),
+                        "data_type": "distance_to_image_plane",
+                        "normalize": False,
+                    },
+                )
+                isaac_env_cfg.observations.policy.wrist_cam_depth = ObsTerm(
+                    func=mdp.image,
+                    params={
+                        "sensor_cfg": SceneEntityCfg("wrist_cam"),
+                        "data_type": "distance_to_image_plane",
+                        "normalize": False,
+                    },
+                )
+            else:
+                isaac_env_cfg.scene.table_cam.data_types = ["rgb"]
+                isaac_env_cfg.scene.wrist_cam.data_types = ["rgb"]
             table_asset = getattr(self.cfg.init_params, "table_asset", None)
             if table_asset:
                 from rlinf.envs.isaaclab.scenario_loader import resolve_table_asset_path
@@ -222,18 +232,19 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                             },
                         ),
                     )
-                    setattr(
-                        isaac_env_cfg.observations.policy,
-                        f"{camera_name}_depth",
-                        ObsTerm(
-                            func=mdp.image,
-                            params={
-                                "sensor_cfg": SceneEntityCfg(camera_name),
-                                "data_type": "distance_to_image_plane",
-                                "normalize": False,
-                            },
-                        ),
-                    )
+                    if self.enable_depth_observations:
+                        setattr(
+                            isaac_env_cfg.observations.policy,
+                            f"{camera_name}_depth",
+                            ObsTerm(
+                                func=mdp.image,
+                                params={
+                                    "sensor_cfg": SceneEntityCfg(camera_name),
+                                    "data_type": "distance_to_image_plane",
+                                    "normalize": False,
+                                },
+                            ),
+                        )
 
             scenario_reset_cfg = getattr(self.cfg.init_params, "scenario_reset", None)
             if scenario_reset_cfg is not None and getattr(
@@ -404,8 +415,6 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
         instruction = [self.task_description] * self.num_envs
         wrist_image = obs["policy"]["wrist_cam"]
         table_image = obs["policy"]["table_cam"]
-        wrist_image_depth = obs["policy"]["wrist_cam_depth"]
-        table_image_depth = obs["policy"]["table_cam_depth"]
         quat = obs["policy"]["eef_quat"][
             :, [1, 2, 3, 0]
         ]  # In isaaclab, quat is wxyz not like libero
@@ -423,7 +432,8 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
             "task_descriptions": instruction,
             "states": states,
             "wrist_images": wrist_image,
-            "main_images_depth": table_image_depth,
-            "wrist_images_depth": wrist_image_depth,
         }
+        if self.enable_depth_observations:
+            env_obs["main_images_depth"] = obs["policy"]["table_cam_depth"]
+            env_obs["wrist_images_depth"] = obs["policy"]["wrist_cam_depth"]
         return env_obs

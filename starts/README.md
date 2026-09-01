@@ -11,7 +11,10 @@ these files.
 ## IsaacLab checkpoint evaluation with videos
 
 Evaluate a `.pt` checkpoint and save one horizontally concatenated
-external/table-plus-wrist video per environment, plus `eval_results.json`:
+external/table-plus-wrist video per environment, `eval_results.json`, and the
+reloadable post-reset settings in `eval_scenarios.jsonl`. The launcher also
+writes `eval_throughput.json`, where successful envs contribute their first
+success step and failed envs contribute their full episode length:
 
 ```bash
 bash starts/eval_isaaclab_checkpoint_videos.sh \
@@ -21,10 +24,20 @@ bash starts/eval_isaaclab_checkpoint_videos.sh \
   env.eval.total_num_envs=32
 ```
 
-省略 checkpoint 参数会使用 nearest100 配置的默认 `rollout.model.model_path`：
+省略 checkpoint 参数会使用默认基础配置的 `rollout.model.model_path`：
 
 ```bash
 bash starts/eval_isaaclab_checkpoint_videos.sh
+```
+
+用 `--scenario-file PATH` 加载已有 JSONL。脚本保留所选 YAML 的 `mode` 和
+`loop`；未传该参数时完全沿用 YAML 的 reset 行为：
+
+```bash
+bash starts/eval_isaaclab_checkpoint_videos.sh \
+  --scenario-file /path/to/scenarios.jsonl \
+  --config-name isaaclab_franka_stack_cube_ppo_openpi_pi05_table_nearest100 \
+  env.eval.total_num_envs=32
 ```
 
 ## Shared environment and 4 x H100 nearest100

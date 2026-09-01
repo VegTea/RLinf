@@ -118,12 +118,15 @@ env:
   group_name: "EnvGroup"
 
   train:
-    total_num_envs: 32
+    total_num_envs: 128
     max_episode_steps: 450 # for truncation
     max_steps_per_rollout_epoch: 450
     use_fixed_reset_state_ids: True
     seed: 42
     init_params:
+      enable_depth_observations: false
+      render_only_at_chunk_end: true
+      antialiasing_mode: "Off"
       scenario_reset:
         enabled: true
         mode: random
@@ -151,6 +154,9 @@ env:
       video_base_dir: ${runner.logger.log_path}/video/eval
     seed: 42
     init_params:
+      enable_depth_observations: false
+      render_only_at_chunk_end: false
+      antialiasing_mode: "DLAA"
       scenario_reset:
         enabled: true
         mode: random

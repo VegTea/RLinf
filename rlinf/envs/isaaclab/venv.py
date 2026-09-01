@@ -34,12 +34,10 @@ def _torch_worker(
     isaac_env, sim_app = env_fn()
     device = isaac_env.device
 
-    def _with_scenario_reset_info(reset_result):
+    def _with_scenario_reset_info(reset_result, reset_env_ids=None):
         obs, info = reset_result
         info = dict(info) if isinstance(info, dict) else {}
-        records = getattr(isaac_env, "_scenario_last_record_by_env", None)
-        if isinstance(records, dict):
-            info["scenario_records"] = dict(records)
+        info["scenario_records"] = _capture_scenario_records(reset_env_ids)
         return obs, info
 
     def _to_tensor(value, dtype=torch.float32):
@@ -124,6 +122,88 @@ def _torch_worker(
                 if asset_path:
                     asset_paths.append(str(asset_path))
         return asset_paths
+
+    def _proxy_tensor(value):
+        return value.torch if hasattr(value, "torch") else value
+
+    def _table_prim_path_for_env(env_id: int) -> str | None:
+        table = isaac_env.scene["table"]
+        if env_id < len(table.prim_paths):
+            return str(table.prim_paths[env_id])
+        if not table.prim_paths or env_id >= len(isaac_env.scene.env_prim_paths):
+            return None
+        source_env_path = str(isaac_env.scene.env_prim_paths[0])
+        source_table_path = str(table.prim_paths[0])
+        if not source_table_path.startswith(source_env_path):
+            return None
+        suffix = source_table_path[len(source_env_path) :]
+        return f"{isaac_env.scene.env_prim_paths[env_id]}{suffix}"
+
+    def _capture_table_asset(env_id: int) -> str | None:
+        prim_path = _table_prim_path_for_env(env_id)
+        if prim_path is None:
+            return None
+        try:
+            from isaaclab.sim.utils.stage import get_current_stage
+
+            prim = get_current_stage().GetPrimAtPath(prim_path)
+            references = _get_prim_reference_asset_paths(prim)
+            return references[-1] if references else None
+        except Exception:
+            return None
+
+    def _capture_scenario_records(reset_env_ids=None) -> dict[int, dict]:
+        """Capture the scene state after reset, before the policy acts."""
+        import isaaclab.utils.math as math_utils
+
+        if reset_env_ids is None:
+            env_ids = list(range(int(isaac_env.num_envs)))
+        elif isinstance(reset_env_ids, torch.Tensor):
+            env_ids = [int(value) for value in reset_env_ids.detach().cpu().tolist()]
+        else:
+            env_ids = [int(value) for value in reset_env_ids]
+
+        source_records = getattr(isaac_env, "_scenario_last_record_by_env", {})
+        if not isinstance(source_records, dict):
+            source_records = {}
+        origins = _proxy_tensor(isaac_env.scene.env_origins)
+        camera = isaac_env.scene["table_cam"]
+        camera_positions = _proxy_tensor(camera.data.pos_w)
+        camera_quaternions_xyzw = _proxy_tensor(camera.data.quat_w_ros)
+        cube_data = {}
+        for cube_name in ("cube_1", "cube_2", "cube_3"):
+            cube = isaac_env.scene[cube_name]
+            positions = _proxy_tensor(cube.data.root_pos_w)
+            quaternions = _proxy_tensor(cube.data.root_quat_w)
+            roll, pitch, yaw = math_utils.euler_xyz_from_quat(quaternions)
+            cube_data[cube_name] = (positions, torch.stack((roll, pitch, yaw), dim=-1))
+
+        captured = {}
+        for env_id in env_ids:
+            source = source_records.get(env_id)
+            record = dict(source) if isinstance(source, dict) else {}
+            if isinstance(source, dict) and source.get("id") is not None:
+                record["_source_scenario_id"] = str(source["id"])
+            record.setdefault("id", f"runtime_{env_id:06d}")
+            table_asset = record.get("table_asset") or _capture_table_asset(env_id)
+            if table_asset:
+                record["table_asset"] = str(table_asset)
+
+            for cube_name, (positions, euler_xyz) in cube_data.items():
+                record[f"{cube_name}_pos"] = (
+                    positions[env_id, :3] - origins[env_id, :3]
+                ).detach().cpu().tolist()
+                record[f"{cube_name}_rpy"] = (
+                    euler_xyz[env_id].detach().cpu().tolist()
+                )
+
+            record["table_cam_pos"] = (
+                camera_positions[env_id, :3] - origins[env_id, :3]
+            ).detach().cpu().tolist()
+            camera_xyzw = camera_quaternions_xyzw[env_id]
+            record["table_cam_rot"] = camera_xyzw[[3, 0, 1, 2]].detach().cpu().tolist()
+            captured[env_id] = record
+        return captured
 
     def _reference_matches_asset(reference_path: str, target_path: str) -> bool:
         try:
@@ -506,6 +586,10 @@ def _torch_worker(
                 child_remote.close()
                 break
             if cmd == "reset":
+                # A chunk may have disabled rendering for an intermediate action.
+                # Resets must always refresh RTX sensors before returning their
+                # first observation.
+                isaac_env.render_enabled = True
                 reset_index, reset_seed = reset_idx_queue.get()
                 if reset_index is None:
                     reset_result = isaac_env.reset(seed=reset_seed)
@@ -513,10 +597,40 @@ def _torch_worker(
                     reset_result = isaac_env.reset(
                         seed=reset_seed, env_ids=reset_index.to(device)
                     )
-                obs_queue.put(_with_scenario_reset_info(reset_result))
+                obs_queue.put(
+                    _with_scenario_reset_info(reset_result, reset_env_ids=reset_index)
+                )
             elif cmd == "step":
-                input_action = action_queue.get()
-                step_result = isaac_env.step(input_action)
+                input_action, render_enabled, return_observation = action_queue.get()
+                isaac_env.render_enabled = bool(render_enabled)
+                observation_manager = getattr(isaac_env, "observation_manager", None)
+                recorder_manager = getattr(isaac_env, "recorder_manager", None)
+                recorder_terms = (
+                    getattr(recorder_manager, "active_terms", ())
+                    if recorder_manager is not None
+                    else ()
+                )
+                skip_observation_compute = (
+                    not return_observation
+                    and observation_manager is not None
+                    and len(recorder_terms) == 0
+                )
+                original_compute = None
+                if skip_observation_compute:
+                    # IsaacLab always computes observations at the end of step().
+                    # Intermediate action-chunk observations are not consumed, so
+                    # avoid evaluating all observation terms (especially camera
+                    # terms) while retaining physics, reward and termination work.
+                    original_compute = observation_manager.compute
+                    observation_manager.compute = lambda *args, **kwargs: {}
+                try:
+                    step_result = isaac_env.step(input_action)
+                finally:
+                    if original_compute is not None:
+                        observation_manager.compute = original_compute
+                if not return_observation:
+                    _, reward, terminated, truncated, info = step_result
+                    step_result = (None, reward, terminated, truncated, info)
                 obs_queue.put(step_result)
             elif cmd == "replay_set_state_and_get_obs":
                 payload = child_remote.recv()
@@ -655,12 +769,29 @@ class SubProcIsaacLabEnv:
         obs, info = self._get_obs_result("reset")
         return obs, info
 
-    def step(self, action: torch.Tensor):
+    def step(
+        self,
+        action: torch.Tensor,
+        *,
+        render_enabled: bool = True,
+        return_observation: bool = True,
+    ):
         """
         action : (bs, action_dim)
+
+        Args:
+            action: Batched environment action.
+            render_enabled: Whether the IsaacLab child should pump Kit and
+                refresh RTX camera sensors for this step. Physics, rewards, and
+                terminations are still advanced when this is false.
+            return_observation: Whether to compute and transfer the resulting
+                observation to the parent process. This may be false for
+                intermediate actions whose observation is never consumed.
         """
         self._send_remote("step", "step")
-        self.action_queue.put(action)
+        self.action_queue.put(
+            (action, bool(render_enabled), bool(return_observation))
+        )
         env_step_result = self._get_obs_result("step")
         return env_step_result
 

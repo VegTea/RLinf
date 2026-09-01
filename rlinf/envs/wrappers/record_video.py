@@ -409,6 +409,15 @@ class RecordVideo(gym.Wrapper):
         self.add_new_frames(obs, info)
         return obs, info
 
+    def get_episode_scenario_record(
+        self, env_id: int, episode_id: int, *, pop: bool = False
+    ):
+        """Forward scenario lookup to the wrapped environment."""
+        getter = getattr(self.env, "get_episode_scenario_record", None)
+        if getter is None:
+            return None
+        return getter(env_id, episode_id, pop=pop)
+
     def step(self, action):
         """Step env and record the resulting frame."""
         obs, reward, terminated, truncated, info = self.env.step(action)

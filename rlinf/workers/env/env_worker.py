@@ -509,16 +509,25 @@ class EnvWorker(Worker):
     def _write_eval_per_episode_results(self, env_info: dict[str, Any], stage_id: int):
         if self.eval_per_episode_result_dir is None:
             return
-        if "scenario_id" not in env_info or "success_once" not in env_info:
+        if "success_once" not in env_info:
             return
 
         result_dir = self.eval_per_episode_result_dir
         result_dir.mkdir(parents=True, exist_ok=True)
 
-        scenario_ids = env_info["scenario_id"].reshape(-1).to(torch.int64)
         successes = env_info["success_once"].reshape(-1).float()
+        scenario_ids = env_info.get(
+            "scenario_id",
+            torch.full(
+                successes.shape,
+                -1,
+                dtype=torch.int64,
+                device=successes.device,
+            ),
+        ).reshape(-1).to(torch.int64)
         returns = env_info.get("return", None)
         episode_lens = env_info.get("episode_len", None)
+        first_success_steps = env_info.get("first_success_step", None)
         env_ids = env_info.get("env_id", None)
         episode_ids = env_info.get("episode_id", None)
         worker_ranks = env_info.get("worker_rank", None)
@@ -530,12 +539,16 @@ class EnvWorker(Worker):
                 "env.eval.per_episode_result_file_naming must be either "
                 f"'scenario' or 'env_episode', got {file_naming!r}"
             )
+        if file_naming == "scenario" and "scenario_id" not in env_info:
+            return
 
         for idx, scenario_id in enumerate(scenario_ids.tolist()):
             scenario_id = int(scenario_id)
-            if scenario_id < 0:
+            if file_naming == "scenario" and scenario_id < 0:
                 continue
-            scenario_key = f"{scenario_id:06d}"
+            scenario_key = (
+                f"{scenario_id:06d}" if scenario_id >= 0 else str(scenario_id)
+            )
             env_id = (
                 int(env_ids.reshape(-1)[idx].item()) if env_ids is not None else idx
             )
@@ -583,7 +596,18 @@ class EnvWorker(Worker):
                 row["return"] = float(returns.reshape(-1)[idx].item())
             if episode_lens is not None:
                 row["episode_len"] = float(episode_lens.reshape(-1)[idx].item())
+            if first_success_steps is not None:
+                row["first_success_step"] = int(
+                    first_success_steps.reshape(-1)[idx].item()
+                )
             eval_env = self.eval_env_list[stage_id]
+            scenario_getter = getattr(
+                eval_env, "get_episode_scenario_record", None
+            )
+            if scenario_getter is not None:
+                scenario_record = scenario_getter(env_id, episode_id, pop=True)
+                if scenario_record is not None:
+                    row["scenario_record"] = scenario_record
             if isinstance(eval_env, RecordVideo):
                 video_path = eval_env.get_pending_video_path(env_id)
                 if video_path is not None:

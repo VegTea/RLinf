@@ -18,6 +18,7 @@ import typing
 
 import torch
 
+from rlinf.envs.isaaclab.scenario_export import normalize_eval_scenarios
 from rlinf.scheduler import Channel
 from rlinf.scheduler import WorkerGroupFuncResult as Handle
 from rlinf.utils.distributed import ScopedTimer
@@ -96,7 +97,10 @@ class EmbodiedEvalRunner:
 
     def _save_eval_manifest(self, raw_eval_metrics):
         manifest_path = self.cfg.runner.get("eval_manifest_path", None)
-        if not manifest_path:
+        scenario_output_path = self.cfg.runner.get(
+            "eval_scenario_output_path", None
+        )
+        if not manifest_path and not scenario_output_path:
             return
 
         result_dir = self.cfg.env.eval.get("per_episode_result_dir", None)
@@ -140,11 +144,17 @@ class EmbodiedEvalRunner:
                 )
             with open(result_path, encoding="utf-8") as result_fp:
                 record = json.load(result_fp)
-            video_path = record.get("video_path")
-            if video_path and not os.path.isfile(video_path):
-                raise FileNotFoundError(
-                    f"Per-environment eval video is missing: {video_path}"
-                )
+            if manifest_path:
+                video_path = record.get("video_path")
+                if not video_path:
+                    raise FileNotFoundError(
+                        "Per-environment eval video is missing from result: "
+                        f"{result_path}"
+                    )
+                if not os.path.isfile(video_path):
+                    raise FileNotFoundError(
+                        f"Per-environment eval video is missing: {video_path}"
+                    )
             records.append(record)
 
         records.sort(
@@ -155,15 +165,35 @@ class EmbodiedEvalRunner:
                 row["episode_id"],
             )
         )
+        if scenario_output_path:
+            self._save_eval_scenarios(records, scenario_output_path)
+        if not manifest_path:
+            return
+
+        video_base_dir = os.path.abspath(
+            str(self.cfg.env.eval.video_cfg.video_base_dir)
+        )
+        successful_results = [
+            os.path.relpath(record["video_path"], video_base_dir)
+            for record in records
+            if bool(record.get("policy_success", False))
+        ]
+        failed_results = [
+            os.path.relpath(record["video_path"], video_base_dir)
+            for record in records
+            if not bool(record.get("policy_success", False))
+        ]
+        num_results = len(records)
         payload = {
-            "num_results": len(records),
-            "results": records,
+            "num_results": num_results,
+            "num_success": len(successful_results),
+            "num_failed": len(failed_results),
+            "success_rate": (
+                len(successful_results) / num_results if num_results else 0.0
+            ),
+            "successful_results": successful_results,
+            "failed_results": failed_results,
         }
-        checkpoint_path = self.cfg.runner.get("ckpt_path", None)
-        if checkpoint_path:
-            payload["checkpoint_path"] = str(checkpoint_path)
-        else:
-            payload["policy_source"] = str(self.cfg.rollout.model.model_path)
         manifest_path = os.path.abspath(str(manifest_path))
         os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
         tmp_path = f"{manifest_path}.tmp"
@@ -172,6 +202,115 @@ class EmbodiedEvalRunner:
             manifest_fp.write("\n")
         os.replace(tmp_path, manifest_path)
         self.logger.info(f"Saved per-environment eval manifest to {manifest_path}")
+
+    def _save_eval_throughput(self, raw_eval_metrics):
+        throughput_path = self.cfg.runner.get("eval_throughput_path", None)
+        if not throughput_path:
+            return
+
+        required_keys = ("success_once", "first_success_step", "episode_len")
+        missing_keys = [key for key in required_keys if key not in raw_eval_metrics]
+        if missing_keys:
+            raise RuntimeError(
+                "Cannot calculate eval success throughput; missing raw metric "
+                f"keys: {missing_keys}"
+            )
+
+        successes = raw_eval_metrics["success_once"].reshape(-1).bool()
+        first_success_steps = raw_eval_metrics["first_success_step"].reshape(-1)
+        episode_lens = raw_eval_metrics["episode_len"].reshape(-1)
+        if not (
+            successes.numel()
+            == first_success_steps.numel()
+            == episode_lens.numel()
+        ):
+            raise RuntimeError(
+                "Cannot calculate eval success throughput: metric lengths differ "
+                f"(success_once={successes.numel()}, "
+                f"first_success_step={first_success_steps.numel()}, "
+                f"episode_len={episode_lens.numel()})"
+            )
+        if successes.numel() == 0:
+            raise RuntimeError(
+                "Cannot calculate eval success throughput from zero results"
+            )
+        if torch.any(successes & (first_success_steps <= 0)):
+            raise RuntimeError(
+                "Cannot calculate eval success throughput: a successful result "
+                "has no positive first_success_step"
+            )
+
+        effective_steps = torch.where(
+            successes,
+            first_success_steps.to(torch.int64),
+            episode_lens.to(torch.int64),
+        )
+        if torch.any(effective_steps <= 0):
+            raise RuntimeError(
+                "Cannot calculate eval success throughput: effective steps must "
+                "all be positive"
+            )
+
+        num_results = int(successes.numel())
+        num_success = int(successes.sum().item())
+        successful_effective_steps = int(effective_steps[successes].sum().item())
+        failed_effective_steps = int(effective_steps[~successes].sum().item())
+        total_effective_steps = successful_effective_steps + failed_effective_steps
+        success_throughput = num_success / total_effective_steps
+        payload = {
+            "definition": (
+                "num_success / sum(first_success_step_if_success_else_episode_len)"
+            ),
+            "num_results": num_results,
+            "num_success": num_success,
+            "num_failed": num_results - num_success,
+            "successful_effective_steps": successful_effective_steps,
+            "failed_effective_steps": failed_effective_steps,
+            "total_effective_steps": total_effective_steps,
+            "success_throughput_per_step": success_throughput,
+            "successes_per_1000_steps": success_throughput * 1000,
+        }
+        throughput_path = os.path.abspath(str(throughput_path))
+        os.makedirs(os.path.dirname(throughput_path), exist_ok=True)
+        tmp_path = f"{throughput_path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as throughput_fp:
+            json.dump(payload, throughput_fp, indent=2, ensure_ascii=False)
+            throughput_fp.write("\n")
+        os.replace(tmp_path, throughput_path)
+        self.logger.info(f"Saved eval success throughput to {throughput_path}")
+
+    def _save_eval_scenarios(self, records, scenario_output_path):
+        expected_count = int(self.cfg.env.eval.total_num_envs)
+        if len(records) != expected_count:
+            raise RuntimeError(
+                "Cannot save eval scenarios: expected "
+                f"{expected_count} per-environment results, got {len(records)}"
+            )
+
+        scenario_records = []
+        for index, result in enumerate(records):
+            scenario_record = result.get("scenario_record")
+            if not isinstance(scenario_record, dict):
+                raise RuntimeError(
+                    "Cannot save eval scenarios: result "
+                    f"{index} has no captured scenario_record"
+                )
+            scenario_records.append(scenario_record)
+        normalized = normalize_eval_scenarios(scenario_records)
+
+        output_path = os.path.abspath(str(scenario_output_path))
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        tmp_path = f"{output_path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as scenario_fp:
+            for record in normalized:
+                scenario_fp.write(
+                    json.dumps(record, separators=(",", ":"), ensure_ascii=False)
+                    + "\n"
+                )
+        os.replace(tmp_path, output_path)
+        self.logger.info(
+            f"Saved {len(normalized)} reloadable eval scenarios to {output_path}"
+        )
 
     def _trajectory_record_cfg(self):
         return self.cfg.env.eval.get("trajectory_record_cfg", None)
@@ -240,6 +379,7 @@ class EmbodiedEvalRunner:
         raw_eval_metrics = self._concat_raw_eval_metrics(eval_metrics_list)
         eval_metrics = compute_evaluate_metrics(eval_metrics_list)
         self._save_eval_metrics(raw_eval_metrics, eval_metrics)
+        self._save_eval_throughput(raw_eval_metrics)
         self._save_eval_manifest(raw_eval_metrics)
         return eval_metrics
 

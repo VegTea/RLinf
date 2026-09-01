@@ -15,7 +15,31 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    actor,env,rollout: all
+    actor:
+      node_group: model
+      placement: all
+    rollout:
+      node_group: model
+      placement: all
+    env:
+      node_group: isaacsim6
+      placement: all
+  node_groups:
+    - label: model
+      node_ranks: 0
+      env_configs:
+        - node_ranks: 0
+          python_interpreter_path: ${oc.env:RLINF_MODEL_PYTHON}
+    - label: isaacsim6
+      node_ranks: 0
+      env_configs:
+        - node_ranks: 0
+          python_interpreter_path: ${oc.env:RLINF_ISAACSIM_PYTHON}
+          env_vars:
+            - REPO_PATH: ${oc.env:REPO_PATH}
+            - PYTHONPATH: ${oc.env:REPO_PATH}
+            - ISAACSIM_ASSET_ROOT: ${oc.env:ISAACSIM_ASSET_ROOT}
+            - OMNI_KIT_ACCEPT_EULA: "YES"
 
 runner:
   task_type: embodied

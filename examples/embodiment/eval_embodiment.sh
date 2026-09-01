@@ -1,5 +1,7 @@
 #! /bin/bash
 
+set -o pipefail
+
 export PYTHONWARNINGS="ignore::FutureWarning"
 # source /inspire/hdd/global_user/gongjingjing-25039/syfei/corriculum_rl/RLinf/isaac_sim/setup_conda_env.sh
 

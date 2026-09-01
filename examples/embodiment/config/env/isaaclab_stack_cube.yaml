@@ -35,6 +35,11 @@ init_params:
   num_envs: null
   max_episode_steps: ${env.train.max_episode_steps} # max episode steps for truncation
   task_description: "Stack the red block on the blue block, then stack the green block on the red block."
+  # Compatibility defaults. Individual experiments can disable unused depth
+  # annotators and render cameras only at action-chunk boundaries.
+  enable_depth_observations: true
+  render_only_at_chunk_end: false
+  antialiasing_mode: null
   table_cam:
     height: 256
     width: 256
