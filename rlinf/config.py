@@ -52,6 +52,7 @@ class SupportedModel(Enum):
     OPENVLA = ("openvla", "embodied")
     OPENVLA_OFT = ("openvla_oft", "embodied")
     OPENPI = ("openpi", "embodied")
+    OPENPI_RLINF = ("openpi_rlinf", "embodied")
     STARVLA = ("starvla", "embodied")
     MLP_POLICY = ("mlp_policy", "embodied")
     GR00T = ("gr00t", "embodied")
@@ -411,6 +412,30 @@ def validate_fsdp_cfg(cfg: DictConfig) -> DictConfig:
             "buffer_dtype", None
         )
         cfg.fsdp_config = validate_amp_cfg(cfg.fsdp_config)
+
+        if cfg.model.get("model_type") == SupportedModel.OPENPI_RLINF.value:
+            if (
+                cfg.fsdp_config.strategy != "fsdp"
+                or cfg.fsdp_config.sharding_strategy != "no_shard"
+            ):
+                raise ValueError(
+                    "openpi_rlinf requires FSDP1 with no_shard; nested flattening is not supported upstream."
+                )
+            dtypes = [
+                mixed_precision_config.get(key)
+                for key in ("param_dtype", "reduce_dtype", "buffer_dtype")
+            ]
+            if not (
+                all(dtype is None for dtype in dtypes)
+                or all(dtype == "fp32" for dtype in dtypes)
+            ):
+                raise ValueError(
+                    "openpi_rlinf requires all-null or all-fp32 FSDP mixed_precision."
+                )
+            if not cfg.fsdp_config.use_orig_params:
+                raise ValueError(
+                    "openpi_rlinf requires actor.fsdp_config.use_orig_params=True."
+                )
 
     return cfg
 

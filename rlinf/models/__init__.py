@@ -26,6 +26,8 @@ def get_model(cfg: DictConfig):
         from rlinf.models.embodiment.openvla_oft import get_model
     elif model_type == SupportedModel.OPENPI:
         from rlinf.models.embodiment.openpi import get_model
+    elif model_type == SupportedModel.OPENPI_RLINF:
+        from rlinf.models.embodiment.openpi_rlinf import get_model
     elif model_type == SupportedModel.STARVLA:
         from rlinf.models.embodiment.starvla import get_model
     elif model_type == SupportedModel.DEXBOTIC_PI:

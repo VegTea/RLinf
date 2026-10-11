@@ -189,6 +189,17 @@ class SFTRunner:
             )
 
     def set_max_steps(self) -> None:
+        if self.cfg.actor.model.model_type == "openpi_rlinf":
+            self.num_steps_per_epoch = self.actor.get_max_steps_per_epoch().wait()[0]
+            max_epochs = self.cfg.runner.get("max_epochs", -1)
+            max_steps = self.cfg.runner.get("max_steps", -1)
+            limits = []
+            if max_epochs > 0:
+                limits.append(self.num_steps_per_epoch * max_epochs)
+            if max_steps >= 0:
+                limits.append(max_steps)
+            self.max_steps = min(limits) if limits else self.num_steps_per_epoch
+            return
         self.num_steps_per_epoch = 1
         self.max_steps = self.num_steps_per_epoch * self.cfg.runner.max_epochs
 

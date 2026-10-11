@@ -27,6 +27,7 @@
 # limitations under the License.
 
 import functools
+import math
 from enum import Enum
 from typing import ContextManager, Iterable, Optional, Union
 
@@ -391,6 +392,33 @@ def get_lr_scheduler(
             if current_step < num_warmup_steps:
                 return float(current_step) / float(max(1.0, num_warmup_steps))
             return 1.0
+
+        return LambdaLR(optimizer, lr_lambda, last_epoch=last_epoch)
+    elif lr_scheduler in ("openpi_cosine", "ref_warmup_cosine"):
+        # Match the JAX OpenPI schedule, including its nonzero first warmup step.
+        from torch.optim.lr_scheduler import LambdaLR
+
+        base_lr = optimizer.param_groups[0]["lr"]
+        if min_lr_rate is not None:
+            min_mult = min_lr_rate
+        elif min_lr and base_lr > 0:
+            min_mult = min_lr / base_lr
+        else:
+            min_mult = 0.0
+
+        def lr_lambda(current_step):
+            if current_step < num_warmup_steps:
+                init_mult = 1.0 / (num_warmup_steps + 1)
+                return init_mult + (1.0 - init_mult) * current_step / max(
+                    1, num_warmup_steps
+                )
+            progress = min(
+                1.0,
+                (current_step - num_warmup_steps)
+                / max(1, num_training_steps - num_warmup_steps),
+            )
+            cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+            return min_mult + (1.0 - min_mult) * cosine
 
         return LambdaLR(optimizer, lr_lambda, last_epoch=last_epoch)
     elif lr_scheduler == "cosine":
