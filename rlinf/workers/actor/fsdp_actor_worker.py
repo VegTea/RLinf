@@ -1149,6 +1149,11 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
             loss_mask, loss_mask_sum = compute_loss_mask(dones)
 
             if self.cfg.algorithm.reward_type == "chunk_level":
+                # Keep the terminal action's reward, not rewards after an inner
+                # reset. The per-action boundary is lost when masks become chunks.
+                rollout_batch["rewards"] = rollout_batch["rewards"].masked_fill(
+                    ~loss_mask, 0
+                )
                 loss_mask = loss_mask.any(dim=-1, keepdim=True)
                 loss_mask_sum = loss_mask_sum[..., -1:]
 

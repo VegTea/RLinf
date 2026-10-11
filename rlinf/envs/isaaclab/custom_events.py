@@ -245,6 +245,8 @@ def apply_scenario_reset(
     envs_per_worker: int = 1,
     seed: int = 0,
     curriculum: dict | None = None,
+    freeze_per_env: bool = False,
+    freeze_within_rollout: bool = False,
 ) -> None:
     """Apply one JSONL scenario to each selected environment."""
     if env_ids is None:
@@ -262,21 +264,40 @@ def apply_scenario_reset(
         seed,
         curriculum,
     )
-    global_batch_size = max(total_workers, 1) * max(envs_per_worker, 1)
-    global_ids = scheduler.sample_global_batch(
-        global_batch_size, env._scenario_batch_index
-    )
-    offsets = (worker_rank * envs_per_worker + local_env_ids).tolist()
-    records = loader.get_by_ids([global_ids[i % len(global_ids)] for i in offsets])
-    if env._scenario_bootstrap_consumed:
-        env._scenario_batch_index += 1
-    else:
-        env._scenario_bootstrap_consumed = True
-
     if not hasattr(env, "_scenario_last_record_by_env"):
         env._scenario_last_record_by_env = {}
-    for env_id, record in zip(local_env_ids.tolist(), records):
-        env._scenario_last_record_by_env[env_id] = dict(record)
+    stored_records = env._scenario_last_record_by_env
+    local_env_id_list = local_env_ids.tolist()
+
+    freeze_reuse = (
+        (
+            freeze_per_env
+            or (
+                freeze_within_rollout
+                and not getattr(env, "_scenario_outer_reset", False)
+            )
+        )
+        and env._scenario_bootstrap_consumed
+        and all(e in stored_records for e in local_env_id_list)
+    )
+    if freeze_reuse:
+        # Internal resets reuse the assigned scene. Explicit outer resets may
+        # resample unless freeze_per_env requests permanent fixed-scene replay.
+        records = [stored_records[e] for e in local_env_id_list]
+    else:
+        global_batch_size = max(total_workers, 1) * max(envs_per_worker, 1)
+        global_ids = scheduler.sample_global_batch(
+            global_batch_size, env._scenario_batch_index
+        )
+        offsets = (worker_rank * envs_per_worker + local_env_ids).tolist()
+        records = loader.get_by_ids([global_ids[i % len(global_ids)] for i in offsets])
+        if env._scenario_bootstrap_consumed:
+            env._scenario_batch_index += 1
+        else:
+            env._scenario_bootstrap_consumed = True
+
+    for env_id, record in zip(local_env_id_list, records):
+        stored_records[env_id] = dict(record)
         if record.get("table_asset"):
             _apply_table_asset(env, env_id, record["table_asset"])
         _apply_table_camera_pose(env, env_id, record)

@@ -95,9 +95,7 @@ def test_per_env_json_links_scenario_success_and_video(tmp_path: Path) -> None:
             "runner": {
                 "ckpt_path": "/checkpoints/policy.pt",
                 "eval_manifest_path": str(tmp_path / "eval_results.json"),
-                "eval_scenario_output_path": str(
-                    tmp_path / "eval_scenarios.jsonl"
-                ),
+                "eval_scenario_output_path": str(tmp_path / "eval_scenarios.jsonl"),
             },
             "env": {
                 "eval": {
@@ -105,6 +103,7 @@ def test_per_env_json_links_scenario_success_and_video(tmp_path: Path) -> None:
                     "per_episode_result_file_naming": "env_episode",
                     "total_num_envs": 2,
                     "video_cfg": {
+                        "save_video": True,
                         "video_base_dir": str(tmp_path / "video"),
                     },
                 }
@@ -135,6 +134,7 @@ def test_per_env_json_links_scenario_success_and_video(tmp_path: Path) -> None:
         {"scenario_id": "000023"},
     ]
     assert [result["policy_success"] for result in results] == [True, False]
+    assert [result["success_once"] for result in results] == [True, False]
     assert [result["first_success_step"] for result in results] == [200, -1]
     assert results[0]["video_path"].endswith("seed_42/0_env_000.mp4")
     assert results[1]["video_path"].endswith("seed_42/0_env_001.mp4")
@@ -151,6 +151,7 @@ def test_per_env_json_links_scenario_success_and_video(tmp_path: Path) -> None:
     runner.logger = logging.getLogger(__name__)
     runner._save_eval_manifest(
         {
+            "success_once": env_info["success_once"],
             "worker_rank": torch.tensor([0, 0]),
             "stage_id": torch.tensor([0, 0]),
             "env_id": torch.tensor([0, 1]),
@@ -162,6 +163,7 @@ def test_per_env_json_links_scenario_success_and_video(tmp_path: Path) -> None:
     assert manifest["num_success"] == 1
     assert manifest["num_failed"] == 1
     assert manifest["success_rate"] == 0.5
+    assert manifest["success_once"] == 0.5
     assert manifest["successful_results"] == ["seed_42/0_env_000.mp4"]
     assert manifest["failed_results"] == ["seed_42/0_env_001.mp4"]
     assert set(manifest) == {
@@ -169,6 +171,7 @@ def test_per_env_json_links_scenario_success_and_video(tmp_path: Path) -> None:
         "num_success",
         "num_failed",
         "success_rate",
+        "success_once",
         "successful_results",
         "failed_results",
     }
@@ -197,11 +200,7 @@ def test_eval_throughput_uses_first_success_or_timeout_steps(
     """Throughput should match the user's effective env-step definition."""
     runner = object.__new__(EmbodiedEvalRunner)
     runner.cfg = OmegaConf.create(
-        {
-            "runner": {
-                "eval_throughput_path": str(tmp_path / "eval_throughput.json")
-            }
-        }
+        {"runner": {"eval_throughput_path": str(tmp_path / "eval_throughput.json")}}
     )
     runner.logger = logging.getLogger(__name__)
 
@@ -233,9 +232,7 @@ def test_isaaclab_metrics_retain_each_envs_first_success_step() -> None:
     env._episode_ids = torch.zeros(3, dtype=torch.int64)
     env._current_scenario_records = [None, None, None]
     env.init_cube_positions = None
-    env.returns = torch.zeros(3)
-    env.success_once = torch.zeros(3, dtype=torch.bool)
-    env._first_success_steps = torch.full((3,), -1, dtype=torch.int64)
+    env._init_metrics()
 
     env._elapsed_steps = torch.tensor([200, 349, 449], dtype=torch.int32)
     env._record_metrics(torch.tensor([1.0, 0.0, 0.0]), None, {})

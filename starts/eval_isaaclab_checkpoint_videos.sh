@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-    cat <<'EOF'
+        cat <<'EOF'
 Usage:
   eval_isaaclab_checkpoint_videos.sh [OPTIONS] [CHECKPOINT] [CONFIG_NAME] [OUTPUT_DIR] [HYDRA_OVERRIDE ...]
 
@@ -13,12 +13,23 @@ Options:
   --output-dir PATH     Write all evaluation artifacts under PATH.
   --scenario-file PATH  Load scenarios from this JSONL file. The selected
                         config still controls scenario_reset.mode and loop.
+                        To replay a captured eval_scenarios.jsonl exactly,
+                        also pass scenario_reset.mode=sequential and
+                        scenario_reset.loop=false as shown below.
   -h, --help            Show this help.
 
 If --scenario-file is omitted, the selected YAML controls reset behavior. A
 config with scenario_reset disabled uses IsaacLab's native random reset; a
 config with it enabled uses its configured scenario file. In both cases the
 actual post-reset settings are saved to OUTPUT_DIR/eval_scenarios.jsonl.
+
+A scenario file can be used either as a random scenario pool (the config's
+scenario_reset.mode is retained) or to replay a captured eval_scenarios.jsonl.
+For replay, override mode to sequential and loop to false: this loads the
+exported scenarios in order, including scenarios originally produced by every
+environment worker. This reproduces the scenario sequence across a different
+GPU count, but does not guarantee bitwise-identical simulator/model execution.
+
 Success throughput is saved to OUTPUT_DIR/eval_throughput.json using first
 success steps for successful envs and full episode lengths for failed envs.
 
@@ -36,6 +47,16 @@ Examples:
     --config-name isaaclab_franka_stack_cube_ppo_openpi_pi05 \
     /path/to/eval-output \
     env.eval.total_num_envs=32
+
+  # Replay a captured scenario sequence (rather than randomly resampling it).
+  bash starts/eval_isaaclab_checkpoint_videos.sh \
+    --scenario-file /path/to/eval_scenarios.jsonl \
+    --config-name isaaclab_franka_stack_cube_ppo_openpi_pi05_table_nearest100_instanceable \
+    --output-dir /path/to/replay-output \
+    env.eval.seed=42 \
+    env.eval.total_num_envs=32 \
+    env.eval.init_params.scenario_reset.mode=sequential \
+    env.eval.init_params.scenario_reset.loop=false
 EOF
 }
 
@@ -56,157 +77,173 @@ POSITIONAL=()
 EXTRA_ARGS=()
 
 while (($#)); do
-    case "$1" in
-        -h|--help)
-            usage
-            exit 0
-            ;;
+        case "$1" in
+        -h | --help)
+                usage
+                exit 0
+                ;;
         --checkpoint)
-            [[ $# -ge 2 ]] || { echo "--checkpoint requires a path" >&2; exit 2; }
-            CHECKPOINT="$2"
-            CHECKPOINT_SET=true
-            shift 2
-            ;;
+                [[ $# -ge 2 ]] || {
+                        echo "--checkpoint requires a path" >&2
+                        exit 2
+                }
+                CHECKPOINT="$2"
+                CHECKPOINT_SET=true
+                shift 2
+                ;;
         --config-name)
-            [[ $# -ge 2 ]] || { echo "--config-name requires a name" >&2; exit 2; }
-            CONFIG_NAME="$2"
-            CONFIG_SET=true
-            shift 2
-            ;;
+                [[ $# -ge 2 ]] || {
+                        echo "--config-name requires a name" >&2
+                        exit 2
+                }
+                CONFIG_NAME="$2"
+                CONFIG_SET=true
+                shift 2
+                ;;
         --output-dir)
-            [[ $# -ge 2 ]] || { echo "--output-dir requires a path" >&2; exit 2; }
-            OUTPUT_DIR="$2"
-            OUTPUT_SET=true
-            shift 2
-            ;;
+                [[ $# -ge 2 ]] || {
+                        echo "--output-dir requires a path" >&2
+                        exit 2
+                }
+                OUTPUT_DIR="$2"
+                OUTPUT_SET=true
+                shift 2
+                ;;
         --scenario-file)
-            [[ $# -ge 2 ]] || { echo "--scenario-file requires a path" >&2; exit 2; }
-            SCENARIO_FILE="$2"
-            shift 2
-            ;;
+                [[ $# -ge 2 ]] || {
+                        echo "--scenario-file requires a path" >&2
+                        exit 2
+                }
+                SCENARIO_FILE="$2"
+                shift 2
+                ;;
         --)
-            shift
-            EXTRA_ARGS+=("$@")
-            break
-            ;;
+                shift
+                EXTRA_ARGS+=("$@")
+                break
+                ;;
         *=*)
-            EXTRA_ARGS+=("$1")
-            shift
-            ;;
+                EXTRA_ARGS+=("$1")
+                shift
+                ;;
         --*)
-            echo "Unknown option: $1" >&2
-            exit 2
-            ;;
+                echo "Unknown option: $1" >&2
+                exit 2
+                ;;
         *)
-            POSITIONAL+=("$1")
-            shift
-            ;;
-    esac
+                POSITIONAL+=("$1")
+                shift
+                ;;
+        esac
 done
 
 pos_index=0
 if [[ "${CHECKPOINT_SET}" == false && ${#POSITIONAL[@]} -gt ${pos_index} ]]; then
-    candidate="${POSITIONAL[${pos_index}]}"
-    if [[ "${candidate}" == "-" ]]; then
-        ((pos_index += 1))
-    elif [[ -f "${candidate}" ]]; then
-        CHECKPOINT="${candidate}"
-        ((pos_index += 1))
-    elif [[ -f "${EMBODIED_PATH}/config/${candidate}.yaml" ]]; then
-        CONFIG_NAME="${candidate}"
-        CONFIG_SET=true
-        ((pos_index += 1))
-    else
-        echo "Expected a checkpoint file, '-', or a config name; got: ${candidate}" >&2
-        exit 2
-    fi
+        candidate="${POSITIONAL[${pos_index}]}"
+        if [[ "${candidate}" == "-" ]]; then
+                ((pos_index += 1))
+        elif [[ -f "${candidate}" ]]; then
+                CHECKPOINT="${candidate}"
+                ((pos_index += 1))
+        elif [[ -f "${EMBODIED_PATH}/config/${candidate}.yaml" ]]; then
+                CONFIG_NAME="${candidate}"
+                CONFIG_SET=true
+                ((pos_index += 1))
+        else
+                echo "Expected a checkpoint file, '-', or a config name; got: ${candidate}" >&2
+                exit 2
+        fi
 fi
 if [[ "${CONFIG_SET}" == false && ${#POSITIONAL[@]} -gt ${pos_index} ]]; then
-    CONFIG_NAME="${POSITIONAL[${pos_index}]}"
-    ((pos_index += 1))
+        CONFIG_NAME="${POSITIONAL[${pos_index}]}"
+        ((pos_index += 1))
 fi
 if [[ "${OUTPUT_SET}" == false && ${#POSITIONAL[@]} -gt ${pos_index} ]]; then
-    OUTPUT_DIR="${POSITIONAL[${pos_index}]}"
-    ((pos_index += 1))
+        OUTPUT_DIR="${POSITIONAL[${pos_index}]}"
+        ((pos_index += 1))
 fi
 if [[ ${#POSITIONAL[@]} -gt ${pos_index} ]]; then
-    echo "Unexpected positional argument: ${POSITIONAL[${pos_index}]}" >&2
-    exit 2
+        echo "Unexpected positional argument: ${POSITIONAL[${pos_index}]}" >&2
+        exit 2
 fi
 
 CONFIG_NAME="${CONFIG_NAME:-${DEFAULT_CONFIG}}"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_PATH}/logs/isaaclab-checkpoint-eval-$(date +'%Y%m%d-%H%M%S')}"
 
 if [[ -n "${CHECKPOINT}" && ! -f "${CHECKPOINT}" ]]; then
-    echo "Checkpoint file not found: ${CHECKPOINT}" >&2
-    exit 2
+        echo "Checkpoint file not found: ${CHECKPOINT}" >&2
+        exit 2
 fi
 if [[ ! -f "${EMBODIED_PATH}/config/${CONFIG_NAME}.yaml" ]]; then
-    echo "Config file not found: ${EMBODIED_PATH}/config/${CONFIG_NAME}.yaml" >&2
-    exit 2
+        echo "Config file not found: ${EMBODIED_PATH}/config/${CONFIG_NAME}.yaml" >&2
+        exit 2
 fi
 if [[ -n "${CHECKPOINT}" ]]; then
-    CHECKPOINT="$(cd "$(dirname "${CHECKPOINT}")" && pwd)/$(basename "${CHECKPOINT}")"
+        CHECKPOINT="$(cd "$(dirname "${CHECKPOINT}")" && pwd)/$(basename "${CHECKPOINT}")"
 fi
 if [[ -n "${SCENARIO_FILE}" ]]; then
-    if [[ ! -f "${SCENARIO_FILE}" ]]; then
-        echo "Scenario file not found: ${SCENARIO_FILE}" >&2
-        exit 2
-    fi
-    SCENARIO_FILE="$(cd "$(dirname "${SCENARIO_FILE}")" && pwd)/$(basename "${SCENARIO_FILE}")"
+        if [[ ! -f "${SCENARIO_FILE}" ]]; then
+                echo "Scenario file not found: ${SCENARIO_FILE}" >&2
+                exit 2
+        fi
+        SCENARIO_FILE="$(cd "$(dirname "${SCENARIO_FILE}")" && pwd)/$(basename "${SCENARIO_FILE}")"
 fi
 if [[ "${OUTPUT_DIR}" != /* ]]; then
-    OUTPUT_DIR="${CALLER_DIR}/${OUTPUT_DIR}"
+        OUTPUT_DIR="${CALLER_DIR}/${OUTPUT_DIR}"
 fi
 
 source "${SCRIPT_DIR}/source.sh"
 
+# A supplied scenario file is intentionally a generic scenario pool: mode and
+# loop remain config-controlled. For deterministic replay of eval_scenarios.jsonl,
+# callers must pass the sequential and loop=false Hydra overrides documented in
+# usage(), so the file is consumed in exported order instead of resampled.
 SCENARIO_ARGS=()
 if [[ -n "${SCENARIO_FILE}" ]]; then
-    python -m rlinf.envs.isaaclab.scenario_export --validate "${SCENARIO_FILE}"
-    SCENARIO_ARGS=(
-        "env.eval.init_params.scenario_reset.enabled=true"
-        "env.eval.init_params.scenario_reset.scenario_file=${SCENARIO_FILE}"
-    )
+        python -m rlinf.envs.isaaclab.scenario_export --validate "${SCENARIO_FILE}"
+        SCENARIO_ARGS=(
+                "env.eval.init_params.scenario_reset.enabled=true"
+                "env.eval.init_params.scenario_reset.scenario_file=${SCENARIO_FILE}"
+        )
 fi
 
 mkdir -p "${OUTPUT_DIR}"
 OUTPUT_DIR="$(cd "${OUTPUT_DIR}" && pwd)"
 CHECKPOINT_ARGS=()
 if [[ -n "${CHECKPOINT}" ]]; then
-    CHECKPOINT_ARGS=("runner.ckpt_path=${CHECKPOINT}")
-    echo "Checkpoint: ${CHECKPOINT}"
+        CHECKPOINT_ARGS=("runner.ckpt_path=${CHECKPOINT}")
+        echo "Checkpoint: ${CHECKPOINT}"
 else
-    echo "Checkpoint: config default rollout.model.model_path"
+        echo "Checkpoint: config default rollout.model.model_path"
 fi
 
 echo "Config:     ${CONFIG_NAME}"
 echo "Output:     ${OUTPUT_DIR}"
 if [[ -n "${SCENARIO_FILE}" ]]; then
-    echo "Scenarios:  ${SCENARIO_FILE} (mode/loop from config)"
+        echo "Scenarios:  ${SCENARIO_FILE} (mode/loop from config)"
 else
-    echo "Scenarios:  selected config reset behavior"
+        echo "Scenarios:  selected config reset behavior"
 fi
 
 LOG_DIR="${OUTPUT_DIR}" bash "${EMBODIED_PATH}/eval_embodiment.sh" \
-    "${CONFIG_NAME}" \
-    "${ROBOT_PLATFORM:-LIBERO}" \
-    "${CHECKPOINT_ARGS[@]}" \
-    "runner.resume_dir=null" \
-    "algorithm.eval_rollout_epoch=1" \
-    "env.eval.video_cfg.save_video=true" \
-    "env.eval.video_cfg.info_on_video=true" \
-    "++env.eval.video_cfg.per_env_videos=true" \
-    "++env.eval.video_cfg.wait_for_video_writes=true" \
-    "++env.eval.video_cfg.camera_keys=[main_images,wrist_images]" \
-    "++env.eval.per_episode_result_dir=${OUTPUT_DIR}/per_env_results" \
-    "++env.eval.per_episode_skip_existing=false" \
-    "++env.eval.per_episode_result_file_naming=env_episode" \
-    "++runner.eval_manifest_path=${OUTPUT_DIR}/eval_results.json" \
-    "++runner.eval_scenario_output_path=${OUTPUT_DIR}/eval_scenarios.jsonl" \
-    "++runner.eval_throughput_path=${OUTPUT_DIR}/eval_throughput.json" \
-    "${EXTRA_ARGS[@]}" \
-    "${SCENARIO_ARGS[@]}"
+        "${CONFIG_NAME}" \
+        "${ROBOT_PLATFORM:-LIBERO}" \
+        "${CHECKPOINT_ARGS[@]}" \
+        "runner.resume_dir=null" \
+        "algorithm.eval_rollout_epoch=1" \
+        "env.eval.video_cfg.save_video=true" \
+        "env.eval.video_cfg.info_on_video=true" \
+        "++env.eval.video_cfg.per_env_videos=true" \
+        "++env.eval.video_cfg.wait_for_video_writes=true" \
+        "++env.eval.video_cfg.camera_keys=[main_images,wrist_images]" \
+        "++env.eval.per_episode_result_dir=${OUTPUT_DIR}/per_env_results" \
+        "++env.eval.per_episode_skip_existing=false" \
+        "++env.eval.per_episode_result_file_naming=env_episode" \
+        "++runner.eval_manifest_path=${OUTPUT_DIR}/eval_results.json" \
+        "++runner.eval_scenario_output_path=${OUTPUT_DIR}/eval_scenarios.jsonl" \
+        "++runner.eval_throughput_path=${OUTPUT_DIR}/eval_throughput.json" \
+        "${EXTRA_ARGS[@]}" \
+        "${SCENARIO_ARGS[@]}"
 
 echo "Videos: ${OUTPUT_DIR}/video/eval/seed_*/*_env_*.mp4"
 echo "Per-env JSON: ${OUTPUT_DIR}/per_env_results/*.json"

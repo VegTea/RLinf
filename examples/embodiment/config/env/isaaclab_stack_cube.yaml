@@ -31,6 +31,9 @@ reset_snapshot_cfg:
   save_metadata: true
 
 init_params:
+  # Initialize Isaac Sim physics/render synchronization once BEFORE seeded reset.
+  # No policy action or episode step; 0 restores legacy startup for comparison.
+  startup_physics_warmup_steps: 1
   id: "Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-Rewarded-v0"
   num_envs: null
   max_episode_steps: ${env.train.max_episode_steps} # max episode steps for truncation

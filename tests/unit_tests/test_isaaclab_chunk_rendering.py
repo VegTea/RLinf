@@ -81,6 +81,7 @@ def test_legacy_chunk_mode_renders_every_action() -> None:
 def test_stack_cube_rgb_only_observation_omits_depth() -> None:
     env = object.__new__(IsaaclabStackCubeEnv)
     env.task_description = "stack cubes"
+    env.cfg = OmegaConf.create({})
     env.num_envs = 2
     env.enable_depth_observations = False
     policy_obs = {
@@ -97,6 +98,7 @@ def test_stack_cube_rgb_only_observation_omits_depth() -> None:
     assert wrapped["wrist_images"] is policy_obs["wrist_cam"]
     assert "main_images_depth" not in wrapped
     assert "wrist_images_depth" not in wrapped
+    assert "eef_quat_xyzw" not in wrapped
 
 
 def test_subprocess_step_transports_render_flag() -> None:
@@ -113,11 +115,11 @@ def test_subprocess_step_transports_render_flag() -> None:
     env._get_obs_result = lambda context: context
     action = torch.zeros(2, 7)
 
-    result = env.step(
-        action, render_enabled=False, return_observation=False
-    )
+    result = env.step(action, render_enabled=False, return_observation=False)
 
-    queued_action, queued_render_flag, queued_observation_flag = env.action_queue.payload
+    queued_action, queued_render_flag, queued_observation_flag = (
+        env.action_queue.payload
+    )
     assert sent == ["step", "step"]
     assert queued_action is action
     assert queued_render_flag is False
@@ -132,9 +134,7 @@ def test_optimized_configs_use_fast_train_and_full_cadence_eval() -> None:
     )
 
     for config_name in config_names:
-        cfg = OmegaConf.load(
-            REPO_ROOT / "examples/embodiment/config" / config_name
-        )
+        cfg = OmegaConf.load(REPO_ROOT / "examples/embodiment/config" / config_name)
 
         assert cfg.env.train.init_params.enable_depth_observations is False
         assert cfg.env.train.init_params.render_only_at_chunk_end is True

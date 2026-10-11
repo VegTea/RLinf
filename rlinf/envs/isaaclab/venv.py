@@ -191,15 +191,19 @@ def _torch_worker(
 
             for cube_name, (positions, euler_xyz) in cube_data.items():
                 record[f"{cube_name}_pos"] = (
-                    positions[env_id, :3] - origins[env_id, :3]
-                ).detach().cpu().tolist()
-                record[f"{cube_name}_rpy"] = (
-                    euler_xyz[env_id].detach().cpu().tolist()
+                    (positions[env_id, :3] - origins[env_id, :3])
+                    .detach()
+                    .cpu()
+                    .tolist()
                 )
+                record[f"{cube_name}_rpy"] = euler_xyz[env_id].detach().cpu().tolist()
 
             record["table_cam_pos"] = (
-                camera_positions[env_id, :3] - origins[env_id, :3]
-            ).detach().cpu().tolist()
+                (camera_positions[env_id, :3] - origins[env_id, :3])
+                .detach()
+                .cpu()
+                .tolist()
+            )
             camera_xyzw = camera_quaternions_xyzw[env_id]
             record["table_cam_rot"] = camera_xyzw[[3, 0, 1, 2]].detach().cpu().tolist()
             captured[env_id] = record
@@ -591,12 +595,17 @@ def _torch_worker(
                 # first observation.
                 isaac_env.render_enabled = True
                 reset_index, reset_seed = reset_idx_queue.get()
-                if reset_index is None:
-                    reset_result = isaac_env.reset(seed=reset_seed)
-                else:
-                    reset_result = isaac_env.reset(
-                        seed=reset_seed, env_ids=reset_index.to(device)
-                    )
+                # Mark only RLinf-requested resets, not Isaac Lab's inner resets.
+                isaac_env.unwrapped._scenario_outer_reset = True
+                try:
+                    if reset_index is None:
+                        reset_result = isaac_env.reset(seed=reset_seed)
+                    else:
+                        reset_result = isaac_env.reset(
+                            seed=reset_seed, env_ids=reset_index.to(device)
+                        )
+                finally:
+                    isaac_env.unwrapped._scenario_outer_reset = False
                 obs_queue.put(
                     _with_scenario_reset_info(reset_result, reset_env_ids=reset_index)
                 )
@@ -789,9 +798,7 @@ class SubProcIsaacLabEnv:
                 intermediate actions whose observation is never consumed.
         """
         self._send_remote("step", "step")
-        self.action_queue.put(
-            (action, bool(render_enabled), bool(return_observation))
-        )
+        self.action_queue.put((action, bool(render_enabled), bool(return_observation)))
         env_step_result = self._get_obs_result("step")
         return env_step_result
 

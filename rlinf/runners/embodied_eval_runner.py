@@ -97,9 +97,7 @@ class EmbodiedEvalRunner:
 
     def _save_eval_manifest(self, raw_eval_metrics):
         manifest_path = self.cfg.runner.get("eval_manifest_path", None)
-        scenario_output_path = self.cfg.runner.get(
-            "eval_scenario_output_path", None
-        )
+        scenario_output_path = self.cfg.runner.get("eval_scenario_output_path", None)
         if not manifest_path and not scenario_output_path:
             return
 
@@ -110,6 +108,7 @@ class EmbodiedEvalRunner:
             )
 
         required_keys = (
+            "success_once",
             "worker_rank",
             "stage_id",
             "env_id",
@@ -125,6 +124,7 @@ class EmbodiedEvalRunner:
         records = []
         seen_paths = set()
         num_rows = int(raw_eval_metrics["env_id"].numel())
+        save_video = bool(self.cfg.env.eval.video_cfg.save_video)
         for idx in range(num_rows):
             worker_rank = int(raw_eval_metrics["worker_rank"][idx].item())
             stage_id = int(raw_eval_metrics["stage_id"][idx].item())
@@ -144,7 +144,7 @@ class EmbodiedEvalRunner:
                 )
             with open(result_path, encoding="utf-8") as result_fp:
                 record = json.load(result_fp)
-            if manifest_path:
+            if manifest_path and save_video:
                 video_path = record.get("video_path")
                 if not video_path:
                     raise FileNotFoundError(
@@ -170,22 +170,40 @@ class EmbodiedEvalRunner:
         if not manifest_path:
             return
 
-        video_base_dir = os.path.abspath(
-            str(self.cfg.env.eval.video_cfg.video_base_dir)
-        )
+        def _result_display_path(row):
+            video_path = row.get("video_path")
+            if save_video and video_path and os.path.isfile(video_path):
+                return os.path.relpath(
+                    video_path,
+                    os.path.abspath(str(self.cfg.env.eval.video_cfg.video_base_dir)),
+                )
+            return os.path.relpath(
+                os.path.join(
+                    str(result_dir),
+                    f"worker_{int(row['worker_rank']):03d}_"
+                    f"stage_{int(row['stage_id']):02d}_"
+                    f"env_{int(row['env_id']):03d}_"
+                    f"episode_{int(row['episode_id']):06d}.json",
+                ),
+                self.cfg.runner.logger.log_path,
+            )
+
         successful_results = [
-            os.path.relpath(record["video_path"], video_base_dir)
+            _result_display_path(record)
             for record in records
             if bool(record.get("policy_success", False))
         ]
         failed_results = [
-            os.path.relpath(record["video_path"], video_base_dir)
+            _result_display_path(record)
             for record in records
             if not bool(record.get("policy_success", False))
         ]
         num_results = len(records)
         payload = {
             "num_results": num_results,
+            "success_once": float(
+                raw_eval_metrics["success_once"].float().mean().item()
+            ),
             "num_success": len(successful_results),
             "num_failed": len(failed_results),
             "success_rate": (
@@ -194,6 +212,8 @@ class EmbodiedEvalRunner:
             "successful_results": successful_results,
             "failed_results": failed_results,
         }
+        if self.cfg.env.eval.get("first_episode_only", False):
+            payload["success_metric"] = "first_episode_success"
         manifest_path = os.path.abspath(str(manifest_path))
         os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
         tmp_path = f"{manifest_path}.tmp"
@@ -220,9 +240,7 @@ class EmbodiedEvalRunner:
         first_success_steps = raw_eval_metrics["first_success_step"].reshape(-1)
         episode_lens = raw_eval_metrics["episode_len"].reshape(-1)
         if not (
-            successes.numel()
-            == first_success_steps.numel()
-            == episode_lens.numel()
+            successes.numel() == first_success_steps.numel() == episode_lens.numel()
         ):
             raise RuntimeError(
                 "Cannot calculate eval success throughput: metric lengths differ "
@@ -304,8 +322,7 @@ class EmbodiedEvalRunner:
         with open(tmp_path, "w", encoding="utf-8") as scenario_fp:
             for record in normalized:
                 scenario_fp.write(
-                    json.dumps(record, separators=(",", ":"), ensure_ascii=False)
-                    + "\n"
+                    json.dumps(record, separators=(",", ":"), ensure_ascii=False) + "\n"
                 )
         os.replace(tmp_path, output_path)
         self.logger.info(

@@ -88,12 +88,16 @@ class IsaaclabBaseEnv(gym.Env):
         )
         self.ignore_terminations = cfg.ignore_terminations
         trajectory_cfg = cfg.get("trajectory_record_cfg", None)
-        self.trajectory_recorder = IsaacLabTrajectoryRecorder(
-            trajectory_cfg,
-            num_envs=self.num_envs,
-            worker_rank=getattr(self.worker_info, "rank", 0),
-            seed=self.seed,
-        ) if trajectory_cfg is not None else None
+        self.trajectory_recorder = (
+            IsaacLabTrajectoryRecorder(
+                trajectory_cfg,
+                num_envs=self.num_envs,
+                worker_rank=getattr(self.worker_info, "rank", 0),
+                seed=self.seed,
+            )
+            if trajectory_cfg is not None
+            else None
+        )
 
     def _make_env_function(self):
         raise NotImplementedError
@@ -105,6 +109,15 @@ class IsaaclabBaseEnv(gym.Env):
 
     def _init_metrics(self):
         self.success_once = torch.zeros(self.num_envs, dtype=bool).to(self.device)
+        self._first_episode_success = torch.zeros_like(self.success_once)
+        self._first_episode_done = torch.zeros_like(self.success_once)
+        self._first_episode_end_step = torch.zeros(
+            self.num_envs, dtype=torch.int64, device=self.device
+        )
+        self._first_episode_terminated = torch.zeros_like(self.success_once)
+        self._first_episode_truncated = torch.zeros_like(self.success_once)
+        self._first_episode_inner_reset = torch.zeros_like(self.success_once)
+        self._first_episode_returns = torch.zeros(self.num_envs, device=self.device)
         self.fail_once = torch.zeros(self.num_envs, dtype=bool).to(self.device)
         self.returns = torch.zeros(self.num_envs).to(self.device)
         self._first_success_steps = torch.full(
@@ -117,6 +130,13 @@ class IsaaclabBaseEnv(gym.Env):
             mask[env_idx] = True
             self.prev_step_reward[mask] = 0.0
             self.success_once[mask] = False
+            self._first_episode_success[mask] = False
+            self._first_episode_done[mask] = False
+            self._first_episode_end_step[mask] = 0
+            self._first_episode_terminated[mask] = False
+            self._first_episode_truncated[mask] = False
+            self._first_episode_inner_reset[mask] = False
+            self._first_episode_returns[mask] = 0
             self.fail_once[mask] = False
             self.returns[mask] = 0
             self._first_success_steps[mask] = -1
@@ -124,13 +144,40 @@ class IsaaclabBaseEnv(gym.Env):
         else:
             self.prev_step_reward[:] = 0
             self.success_once[:] = False
+            self._first_episode_success[:] = False
+            self._first_episode_done[:] = False
+            self._first_episode_end_step[:] = 0
+            self._first_episode_terminated[:] = False
+            self._first_episode_truncated[:] = False
+            self._first_episode_inner_reset[:] = False
+            self._first_episode_returns[:] = 0
             self.fail_once[:] = False
             self.returns[:] = 0.0
             self._first_success_steps[:] = -1
             self._elapsed_steps[:] = 0
 
-    def _record_metrics(self, step_reward, terminations, infos):
+    def _record_metrics(self, step_reward, terminations, infos, truncations=None):
         episode_info = {}
+        # Count the terminal transition's success before closing the first episode.
+        # IsaacLab's internal resets must not reopen this outer-reset window.
+        active = ~self._first_episode_done
+        self._first_episode_returns += step_reward * active
+        self._first_episode_success |= active & (step_reward > 0)
+        ended = torch.zeros_like(active)
+        if terminations is not None:
+            ended |= terminations
+            self._first_episode_terminated |= active & terminations
+        if truncations is not None:
+            ended |= truncations
+            self._first_episode_truncated |= active & truncations
+        self._first_episode_end_step[active & ended] = self.elapsed_steps[
+            active & ended
+        ].to(torch.int64)
+        if terminations is not None:
+            self._first_episode_done |= terminations
+        if truncations is not None:
+            self._first_episode_done |= truncations
+        episode_info["success_rate"] = self._first_episode_success.clone()
         self.returns += step_reward
         first_success_mask = (~self.success_once) & (step_reward > 0)
         self._first_success_steps[first_success_mask] = self.elapsed_steps[
@@ -142,7 +189,34 @@ class IsaaclabBaseEnv(gym.Env):
         episode_info["first_success_step"] = self._first_success_steps.clone()
         episode_info["return"] = self.returns.clone()
         episode_info["episode_len"] = self.elapsed_steps.clone()
-        episode_info["reward"] = episode_info["return"] / episode_info["episode_len"]
+        if getattr(getattr(self, "cfg", None), "first_episode_only", False):
+            episode_info["return"] = self._first_episode_returns.clone()
+            episode_info["success_once_window"] = episode_info["success_once"]
+            episode_info["success_once"] = self._first_episode_success.clone()
+            episode_info["first_success_step"] = torch.where(
+                self._first_episode_success, self._first_success_steps, -1
+            ).clone()
+            episode_info["episode_len"] = torch.where(
+                self._first_episode_done,
+                self._first_episode_end_step,
+                self.elapsed_steps,
+            ).clone()
+            episode_info["first_episode_end_step"] = (
+                self._first_episode_end_step.clone()
+            )
+            episode_info["first_episode_terminated"] = (
+                self._first_episode_terminated.clone()
+            )
+            episode_info["first_episode_truncated"] = (
+                self._first_episode_truncated.clone()
+            )
+            episode_info["first_episode_inner_reset"] = (
+                self._first_episode_inner_reset.clone()
+            )
+            episode_info["window_step"] = self.elapsed_steps.clone()
+        episode_info["reward"] = episode_info["return"] / episode_info[
+            "episode_len"
+        ].clamp_min(1)
         episode_info["env_id"] = torch.arange(self.num_envs, device=self.device)
         episode_info["episode_id"] = self._episode_ids.clone()
         episode_info["worker_rank"] = torch.full(
@@ -332,10 +406,7 @@ class IsaaclabBaseEnv(gym.Env):
         os.makedirs(image_dir, exist_ok=True)
         x = float(cube_pos[0].item())
         y = float(cube_pos[1].item())
-        file_name = (
-            f"reset_{reset_id:06d}_env{env_id:03d}_"
-            f"x{x:+.4f}_y{y:+.4f}.png"
-        )
+        file_name = f"reset_{reset_id:06d}_env{env_id:03d}_x{x:+.4f}_y{y:+.4f}.png"
         imageio.imwrite(os.path.join(image_dir, file_name), image)
         return file_name
 
@@ -483,9 +554,7 @@ class IsaaclabBaseEnv(gym.Env):
 
                 label = "success_hit"
                 episode_id = int(
-                    self._tensor_value_for_env(
-                        episode_info.get("episode_id"), env_id
-                    )
+                    self._tensor_value_for_env(episode_info.get("episode_id"), env_id)
                     or 0
                 )
                 cube_positions = None
@@ -506,9 +575,7 @@ class IsaaclabBaseEnv(gym.Env):
                     "success_at_end": bool(
                         self._tensor_value_for_env(terminations, env_id)
                     ),
-                    "truncated": bool(
-                        self._tensor_value_for_env(truncations, env_id)
-                    ),
+                    "truncated": bool(self._tensor_value_for_env(truncations, env_id)),
                 }
                 if cube_positions is not None:
                     record["cube_xyz"] = [
@@ -569,13 +636,16 @@ class IsaaclabBaseEnv(gym.Env):
         success_hits = (~self.success_once) & (step_reward > 0)
 
         self._elapsed_steps += 1
+        self._first_episode_inner_reset |= (~self._first_episode_done) & (
+            terminations | truncations
+        )
 
         truncations = (self.elapsed_steps >= self.cfg.max_episode_steps) | truncations
 
         dones = terminations | truncations
 
         infos = self._record_metrics(
-            step_reward, terminations, {}
+            step_reward, terminations, {}, truncations=truncations
         )  # return infos is useless
         if obs is not None:
             self._save_success_hit_snapshots(
@@ -627,9 +697,12 @@ class IsaaclabBaseEnv(gym.Env):
         )
         for i in range(chunk_size):
             actions = chunk_actions[:, i]
-            render_enabled = (
-                not self.render_only_at_chunk_end or i == chunk_size - 1
-            )
+            if getattr(self.cfg, "first_episode_only", False):
+                # Never execute an old chunk in an internally reset episode.
+                # Zero relative motion / open gripper is not counted as a new trial.
+                actions = actions.clone()
+                actions[self._first_episode_done.to(actions.device)] = 0
+            render_enabled = not self.render_only_at_chunk_end or i == chunk_size - 1
             return_observation = render_enabled or needs_intermediate_observations
             extracted_obs, step_reward, terminations, truncations, infos = self.step(
                 actions,

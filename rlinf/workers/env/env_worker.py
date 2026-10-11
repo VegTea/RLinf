@@ -516,15 +516,19 @@ class EnvWorker(Worker):
         result_dir.mkdir(parents=True, exist_ok=True)
 
         successes = env_info["success_once"].reshape(-1).float()
-        scenario_ids = env_info.get(
-            "scenario_id",
-            torch.full(
-                successes.shape,
-                -1,
-                dtype=torch.int64,
-                device=successes.device,
-            ),
-        ).reshape(-1).to(torch.int64)
+        scenario_ids = (
+            env_info.get(
+                "scenario_id",
+                torch.full(
+                    successes.shape,
+                    -1,
+                    dtype=torch.int64,
+                    device=successes.device,
+                ),
+            )
+            .reshape(-1)
+            .to(torch.int64)
+        )
         returns = env_info.get("return", None)
         episode_lens = env_info.get("episode_len", None)
         first_success_steps = env_info.get("first_success_step", None)
@@ -578,6 +582,7 @@ class EnvWorker(Worker):
                 "scenario_id": scenario_key,
                 "setting": {"scenario_id": scenario_key},
                 "policy_success": policy_success,
+                "success_once": bool(successes[idx].item()),
                 "num_trials": 1,
                 "num_success": int(policy_success),
                 "success_rate": float(policy_success),
@@ -587,6 +592,20 @@ class EnvWorker(Worker):
                 "episode_id": episode_id,
                 "worker_rank": worker_rank,
             }
+            if self.cfg.env.eval.get("first_episode_only", False):
+                row["success_metric"] = "first_episode_success"
+                for key in (
+                    "first_episode_end_step",
+                    "first_episode_terminated",
+                    "first_episode_truncated",
+                    "first_episode_inner_reset",
+                    "success_once_window",
+                ):
+                    if key in env_info:
+                        row[key] = env_info[key].reshape(-1)[idx].item()
+                row["terminal_frame_available"] = not row.get(
+                    "first_episode_inner_reset", False
+                )
             checkpoint_path = self.cfg.runner.get("ckpt_path", None)
             if checkpoint_path:
                 row["checkpoint_path"] = str(checkpoint_path)
@@ -601,9 +620,7 @@ class EnvWorker(Worker):
                     first_success_steps.reshape(-1)[idx].item()
                 )
             eval_env = self.eval_env_list[stage_id]
-            scenario_getter = getattr(
-                eval_env, "get_episode_scenario_record", None
-            )
+            scenario_getter = getattr(eval_env, "get_episode_scenario_record", None)
             if scenario_getter is not None:
                 scenario_record = scenario_getter(env_id, episode_id, pop=True)
                 if scenario_record is not None:

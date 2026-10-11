@@ -1,5 +1,22 @@
 # PI0.5 IsaacLab Stack-Cube 评测
 
+## 首次 reset 的相机同步
+
+共享 Stack-Cube 配置默认设置 `init_params.startup_physics_warmup_steps: 1`。
+环境创建时先执行一个物理初始化步（当前 dt=0.01 秒），随后进行完整的 seeded
+reset，恢复初始位置/速度。这是修复 Isaac Sim 6 在第一次物理步之前仍渲染
+构建时旧场景的问题，不是每次 reset 后偷偷加动作。它不调用 `env.step`，
+不计入策略动作、episode 长度或评测的 450 步预算，也不修改 π0.5 的旋转/夹爪转换。
+
+训练和评测均继承此设置。仅在复现旧启动行为时将对应
+`env.train.init_params.startup_physics_warmup_steps` 或
+`env.eval.init_params.startup_physics_warmup_steps` 设为 0。
+原训练环境配置的双环境 A/B 检查确认 seeded reset 后的关节/方块位置不变；
+连续 full reset 和 partial reset 的图像对齐、episode 计数通过验证。
+GPU 回归入口为 `toolkits/isaaclab/probe_reset_alignment.py`，证据在
+`logs/dem_reset_fix_20261010/`。不要由此推断历史训练的每次 reset 都错位，
+或认为仅修正首帧就能保证策略成功。
+
 ## 指定 checkpoint、逐环境双相机视频和结果 JSON
 
 使用专用启动脚本时，可以在第一个参数传入 `.pt` 权重文件：

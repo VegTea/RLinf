@@ -370,6 +370,27 @@ class RecordVideo(gym.Wrapper):
                 )
                 return
             for env_id, image in enumerate(images):
+                if self.video_cfg.get("first_episode_only", False) and isinstance(
+                    infos, dict
+                ):
+                    episode = infos.get("episode", {})
+                    end = int(
+                        self._value_for_env(
+                            episode.get("first_episode_end_step", 0), env_id
+                        )
+                    )
+                    step = int(
+                        self._value_for_env(episode.get("window_step", 0), env_id)
+                    )
+                    reset = bool(
+                        self._value_for_env(
+                            episode.get("first_episode_inner_reset", False), env_id
+                        )
+                    )
+                    # IsaacLab returns a reset image on an internal terminal step.
+                    # Do not mislabel it as the terminal image of the first trial.
+                    if end > 0 and (step > end or (step == end and reset)):
+                        continue
                 self.per_env_render_images[env_id].append(image)
         elif len(images) > 1:
             nrows = int(np.sqrt(len(images)))

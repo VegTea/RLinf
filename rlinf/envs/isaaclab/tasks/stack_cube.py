@@ -13,14 +13,49 @@
 # limitations under the License.
 
 from copy import deepcopy
+from typing import Any
 
 import gymnasium as gym
 import torch
 from omegaconf import OmegaConf
 
 from rlinf.envs.isaaclab.utils import quat2axisangle_torch
+from rlinf.utils.logging import get_logger
 
 from ..isaaclab_env import IsaaclabBaseEnv
+
+
+def _termination_never(env) -> torch.Tensor:
+    """Return a termination signal that is always False.
+
+    Used to disable Isaac Lab cube-dropping termination terms during fixed-
+    scenario replay so a dropped cube does not trigger Isaac Lab's internal
+    per-env auto-reset (which would otherwise consume fresh scenario ids and
+    break deterministic `loop=false` replay).
+    """
+
+    return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+
+
+def warmup_physics_before_reset(env: Any, steps: int) -> None:
+    """Initialize physics/render synchronization before the first seeded reset.
+
+    Isaac Sim 6 can render construction-time poses until physics has stepped
+    once. Rendering alone does not initialize this path. Only advance physics
+    here, not env.step(): no policy actions, rewards, or episode counters.
+    The caller must perform a full reset afterwards to restore initial states.
+    Zero steps preserves the previous initialization behavior.
+    """
+    if type(steps) is not int or steps < 0:
+        raise ValueError("startup_physics_warmup_steps must be a nonnegative integer")
+    for _ in range(steps):
+        env.sim.step(render=False)
+        env.scene.update(dt=env.physics_dt)
+    if steps:
+        get_logger().info(
+            f"Initialized physics for {steps} step(s), {steps * env.physics_dt:.6f}s, "
+            "before the first seeded reset; these are not policy/episode steps."
+        )
 
 
 class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
@@ -149,9 +184,7 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
             isaac_env_cfg.scene.wrist_cam.width = self.cfg.init_params.wrist_cam.width
             isaac_env_cfg.scene.table_cam.height = self.cfg.init_params.table_cam.height
             isaac_env_cfg.scene.table_cam.width = self.cfg.init_params.table_cam.width
-            antialiasing_mode = self.cfg.init_params.get(
-                "antialiasing_mode", None
-            )
+            antialiasing_mode = self.cfg.init_params.get("antialiasing_mode", None)
             if antialiasing_mode is not None:
                 isaac_env_cfg.sim.render.antialiasing_mode = str(antialiasing_mode)
 
@@ -287,12 +320,31 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                     "envs_per_worker": int(self.num_envs),
                     "seed": int(self.seed),
                     "curriculum": curriculum,
+                    "freeze_per_env": bool(
+                        getattr(scenario_reset_cfg, "freeze_per_env", False)
+                    ),
+                    "freeze_within_rollout": bool(
+                        getattr(scenario_reset_cfg, "freeze_within_rollout", False)
+                    ),
                 }
                 if hasattr(isaac_env_cfg.events, "randomize_table_visual_material"):
                     isaac_env_cfg.events.randomize_table_visual_material.func = (
                         custom_events.noop_event
                     )
                     isaac_env_cfg.events.randomize_table_visual_material.params = {}
+
+            if getattr(
+                self.cfg.init_params, "disable_drop_terminations", False
+            ) and hasattr(isaac_env_cfg, "terminations"):
+                for _drop_name in (
+                    "cube_1_dropping",
+                    "cube_2_dropping",
+                    "cube_3_dropping",
+                ):
+                    _drop_term = getattr(isaac_env_cfg.terminations, _drop_name, None)
+                    if _drop_term is not None:
+                        _drop_term.func = _termination_never
+                        _drop_term.params = {}
 
             if getattr(
                 self.cfg.init_params,
@@ -404,9 +456,30 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
                     ],
                 }
 
+            safety_cfg = self.cfg.init_params.get("safety_terminations", None)
+            if safety_cfg is not None and safety_cfg.get("enabled", False):
+                from rlinf.envs.isaaclab.safety_terminations import (
+                    configure_safety_terminations,
+                )
+
+                configure_safety_terminations(isaac_env_cfg, safety_cfg)
+
             env = gym.make(
                 self.isaaclab_env_id, cfg=isaac_env_cfg, render_mode="rgb_array"
             ).unwrapped
+            # IsaaclabBaseEnv performs the full seeded reset immediately after
+            # this factory returns. Warm up once, never on per-episode resets.
+            warmup_physics_before_reset(
+                env, self.cfg.init_params.get("startup_physics_warmup_steps", 0)
+            )
+            diagnostic_path = self.cfg.init_params.get("ik_diagnostic_path", None)
+            if diagnostic_path:
+                from rlinf.envs.isaaclab.ik_diagnostics import install_ik_diagnostics
+
+                diagnostic_path = str(diagnostic_path)
+                if self.total_num_processes > 1:
+                    diagnostic_path += f".rank{self.worker_info.rank}"
+                install_ik_diagnostics(env, diagnostic_path)
             return env, sim_app
 
         return make_env_isaaclab
@@ -433,6 +506,9 @@ class IsaaclabStackCubeEnv(IsaaclabBaseEnv):
             "states": states,
             "wrist_images": wrist_image,
         }
+        if self.cfg.get("include_native_eef_quat", False):
+            # This IsaacLab 3 checkout uses XYZW. Keep legacy pi05 states intact.
+            env_obs["eef_quat_xyzw"] = obs["policy"]["eef_quat"].clone()
         if self.enable_depth_observations:
             env_obs["main_images_depth"] = obs["policy"]["table_cam_depth"]
             env_obs["wrist_images_depth"] = obs["policy"]["wrist_cam_depth"]
