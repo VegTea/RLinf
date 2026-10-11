@@ -11,6 +11,8 @@
 set -euo pipefail
 
 STARTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SAVE_INTERVAL (default 40), USE_WANDB (default false; offline when enabled).
+source "${STARTS_DIR}/_train_options.sh"
 REPO_PATH="$(dirname "${STARTS_DIR}")"
 
 if [[ ! -x "${REPO_PATH}/.venv/bin/python" ]]; then
@@ -49,4 +51,5 @@ exec bash examples/embodiment/run_embodiment.sh \
     actor.model.lora_rank=32 \
     actor.model.openpi.train_expert_only=false \
     actor.fsdp_config.use_orig_params=true \
+    "${TRAIN_OPTIONS[@]}" \
     "$@"

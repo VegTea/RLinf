@@ -7,6 +7,8 @@
 set -euo pipefail
 
 STARTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SAVE_INTERVAL (default 40), USE_WANDB (default false; offline when enabled).
+source "${STARTS_DIR}/_train_options.sh"
 REPO_PATH="$(dirname "${STARTS_DIR}")"
 MODEL_VENV="${REPO_PATH}/.venv-model312"
 
@@ -51,4 +53,5 @@ exec bash examples/embodiment/run_embodiment.sh \
     env.eval.total_num_envs=1 \
     actor.micro_batch_size=2 \
     actor.global_batch_size=180 \
+    "${TRAIN_OPTIONS[@]}" \
     "$@"

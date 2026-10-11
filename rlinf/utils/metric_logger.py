@@ -83,15 +83,15 @@ class MetricLogger:
             settings = None
             if self.wandb_proxy:
                 settings = wandb.Settings(https_proxy=self.wandb_proxy)
-            wandb.init(
+            run = wandb.init(
                 project=self.project_name,
                 name=experiment_name,
                 config=self.config,
                 settings=settings,
                 dir=wandb_log_path,
-                reinit=True,
+                reinit="create_new",
             )
-            logger["wandb"] = wandb
+            logger["wandb"] = run
 
         if "swanlab" in self.logger_backends:
             import swanlab
@@ -161,7 +161,9 @@ class MetricLogger:
 
     def log_table(self, df_data, name, step):
         if "wandb" in self.logger_backends:
-            table = self.logger["wandb"].Table(dataframe=df_data)
+            import wandb
+
+            table = wandb.Table(dataframe=df_data)
             self.logger["wandb"].log({name: table}, step=step)
         else:
             raise ValueError(f"Unsupported log table for {self.logger_backends}")
@@ -173,3 +175,4 @@ class MetricLogger:
         for logger in self._all_loggers:
             for logger_instance in logger.values():
                 logger_instance.finish()
+        self._all_loggers.clear()

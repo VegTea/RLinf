@@ -12,17 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import json
+import logging
+import math
 import os
 import queue
+import shutil
+import tempfile
 import threading
 import time
 from collections import defaultdict, deque
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union
+
 import numpy as np
 import torch
-
 from omegaconf.dictconfig import DictConfig
 
 from rlinf.scheduler import Channel
@@ -74,6 +78,19 @@ class EmbodiedRunner:
         self.critic = critic
         self.reward = reward
         self.weight_sync_interval = self.cfg.runner.weight_sync_interval
+        self.save_best_checkpoint = self.cfg.runner.get("save_best_checkpoint", False)
+        if self.save_best_checkpoint and self.weight_sync_interval != 1:
+            raise ValueError("save_best_checkpoint requires weight_sync_interval=1")
+        self.best_checkpoint = None
+        # Only checkpoints created by this runner may be removed on improvement.
+        self._owned_best_checkpoint = None
+        self.keep_last_n_checkpoints = self.cfg.runner.get("keep_last_n_checkpoints", 0)
+        if (
+            isinstance(self.keep_last_n_checkpoints, bool)
+            or not isinstance(self.keep_last_n_checkpoints, int)
+            or self.keep_last_n_checkpoints < 0
+        ):
+            raise ValueError("keep_last_n_checkpoints must be a non-negative integer")
         # Data channels
         self.env_channel = Channel.create("Env")
         self.rollout_channel = Channel.create("Rollout")
@@ -102,9 +119,7 @@ class EmbodiedRunner:
         )
         self.scenario_curriculum_success_thresholds = [
             float(threshold)
-            for threshold in self.scenario_curriculum_cfg.get(
-                "success_thresholds", []
-            )
+            for threshold in self.scenario_curriculum_cfg.get("success_thresholds", [])
         ]
         self.scenario_curriculum_stable_steps_required = int(
             self.scenario_curriculum_cfg.get("stable_steps", 10)
@@ -174,7 +189,6 @@ class EmbodiedRunner:
         self.log_queue = queue.Queue()
         self.log_thread = threading.Thread(target=self._log_worker, daemon=True)
         self.log_thread.start()
-
 
     def _get_scenario_curriculum_cfg(self):
         try:
@@ -260,9 +274,8 @@ class EmbodiedRunner:
         self.scenario_curriculum_cumulative_success_history.clear()
 
     def _current_scenario_curriculum_success_threshold(self):
-        if (
-            self.scenario_curriculum_stage_index
-            < len(self.scenario_curriculum_success_thresholds)
+        if self.scenario_curriculum_stage_index < len(
+            self.scenario_curriculum_success_thresholds
         ):
             return self.scenario_curriculum_success_thresholds[
                 self.scenario_curriculum_stage_index
@@ -271,10 +284,9 @@ class EmbodiedRunner:
 
     def _promotion_threshold(self, key, fallback):
         values = self.scenario_curriculum_promotion_cfg.get(key, [])
-        if (
-            isinstance(values, (list, tuple))
-            and self.scenario_curriculum_stage_index < len(values)
-        ):
+        if isinstance(
+            values, (list, tuple)
+        ) and self.scenario_curriculum_stage_index < len(values):
             return float(values[self.scenario_curriculum_stage_index])
         value = self.scenario_curriculum_promotion_cfg.get(key, None)
         if isinstance(value, (int, float)):
@@ -318,7 +330,9 @@ class EmbodiedRunner:
         def group_stats(group_ids):
             if not group_ids:
                 return None, 0.0
-            mask_values = [int(scenario_id.item()) in group_ids for scenario_id in scenario_ids]
+            mask_values = [
+                int(scenario_id.item()) in group_ids for scenario_id in scenario_ids
+            ]
             mask = torch.tensor(mask_values, dtype=torch.bool)
             count = int(mask.sum().item())
             if count <= 0:
@@ -361,9 +375,7 @@ class EmbodiedRunner:
             "curriculum/allowed_scenarios": float(
                 state.get("allowed_scenarios", 0) or 0
             ),
-            "curriculum/total_scenarios": float(
-                state.get("total_scenarios", 0) or 0
-            ),
+            "curriculum/total_scenarios": float(state.get("total_scenarios", 0) or 0),
             "curriculum/stage_steps": float(self.scenario_curriculum_stage_steps),
             "curriculum/stable_success_steps": float(
                 self.scenario_curriculum_stable_success_steps
@@ -387,9 +399,7 @@ class EmbodiedRunner:
                 self._history_mean(self.scenario_curriculum_old_success_history) or 0.0
             ),
             "curriculum/cumulative_success_window_mean": float(
-                self._history_mean(
-                    self.scenario_curriculum_cumulative_success_history
-                )
+                self._history_mean(self.scenario_curriculum_cumulative_success_history)
                 or 0.0
             ),
             "curriculum/new_success_threshold": float(
@@ -597,11 +607,19 @@ class EmbodiedRunner:
         if self.scenario_curriculum_enabled:
             self._sync_scenario_curriculum_stage()
             self.logger.info(
-                "Initialized scenario curriculum: "
-                f"{self.scenario_curriculum_state}"
+                f"Initialized scenario curriculum: {self.scenario_curriculum_state}"
             )
 
         resume_dir = self.cfg.runner.get("resume_dir", None)
+        if resume_dir == "auto":
+            candidates = self._complete_checkpoints(self.checkpoint_root)
+            if not candidates:
+                candidates = self._complete_checkpoints(self.checkpoint_root / "best")
+            resume_dir = str(candidates[-1]) if candidates else None
+            if resume_dir is None:
+                self.logger.info(
+                    "No complete checkpoint found; starting from initial weights."
+                )
         if resume_dir is None:
             return
 
@@ -611,7 +629,9 @@ class EmbodiedRunner:
             f"resume_dir {actor_checkpoint_path} does not exist."
         )
         self.actor.load_checkpoint(actor_checkpoint_path).wait()
-        self.global_step = int(resume_dir.split("global_step_")[-1])
+        self.global_step = int(Path(resume_dir).name.removeprefix("global_step_"))
+        if self.save_best_checkpoint:
+            self._restore_best_checkpoint(Path(resume_dir))
 
     def update_rollout_weights(self):
         rollout_handle: Handle = self.rollout.sync_model_from_actor()
@@ -631,11 +651,7 @@ class EmbodiedRunner:
         env_results = env_handle.wait()
         rollout_handle.wait()
         eval_metrics_list = [
-            {
-                key: value
-                for key, value in results.items()
-                if key not in {"scenario_id"}
-            }
+            {key: value for key, value in results.items() if key not in {"scenario_id"}}
             for results in env_results
             if results is not None
         ]
@@ -737,7 +753,6 @@ class EmbodiedRunner:
         function: givin a thre, cal env_id, and write to a local file
         buffer: csv(env_id, distance_to_init_emb)
         """
-        emb_buffer_dir = self.cfg.algorithm.emb_buffer_dir
         # 从 csv 中小于阈值的 env_id 记录到一个文件下 (isaac 那边要做的是从这个文件的 id 中随机挑一个去初始化)
         pass
 
@@ -785,6 +800,29 @@ class EmbodiedRunner:
                     rollout_handle.wait()
                     if self.reward is not None:
                         reward_handle.wait()
+
+                env_results = env_handle.wait()
+                env_results_list = [
+                    results for results in env_results if results is not None
+                ]
+                curriculum_grouped_metrics = self._compute_scenario_group_metrics(
+                    env_results_list
+                )
+                env_metric_results_list = [
+                    {
+                        key: value
+                        for key, value in results.items()
+                        if key not in {"scenario_id"}
+                    }
+                    for results in env_results_list
+                ]
+                env_metrics = compute_evaluate_metrics(env_metric_results_list)
+                env_metrics = {f"env/{k}": v for k, v in env_metrics.items()}
+                # The rollout measured the current actor, before this PPO update.
+                if self.save_best_checkpoint:
+                    self._maybe_save_best_checkpoint(
+                        env_metrics.get("env/success_rate")
+                    )
 
                 # compute advantages and returns.
                 with self.timer("cal_adv_and_returns"):
@@ -847,23 +885,6 @@ class EmbodiedRunner:
                     {f"time/reward/{k}": v for k, v in reward_time_metrics.items()}
                 )
 
-            env_results = env_handle.wait()
-            env_results_list = [
-                results for results in env_results if results is not None
-            ]
-            curriculum_grouped_metrics = self._compute_scenario_group_metrics(
-                env_results_list
-            )
-            env_metric_results_list = [
-                {
-                    key: value
-                    for key, value in results.items()
-                    if key not in {"scenario_id"}
-                }
-                for results in env_results_list
-            ]
-            env_metrics = compute_evaluate_metrics(env_metric_results_list)
-            env_metrics = {f"env/{k}": v for k, v in env_metrics.items()}
             ranked_env_results = [
                 {
                     "rank": rank,
@@ -968,16 +989,185 @@ class EmbodiedRunner:
         self.log_queue.join()  # Wait for all queued logs to be processed
         self.log_thread.join(timeout=1.0)
 
-    def _save_checkpoint(self):
-        self.logger.info(f"Saving checkpoint at step {self.global_step}.")
-        base_output_dir = os.path.join(
-            self.cfg.runner.logger.log_path,
-            self.cfg.runner.logger.experiment_name,
-            f"checkpoints/global_step_{self.global_step}",
+    @property
+    def checkpoint_root(self) -> Path:
+        """Persistent checkpoint location, optionally separate from attempt logs."""
+        directory = self.cfg.runner.get("checkpoint_dir", None)
+        if directory is not None:
+            return Path(directory).resolve()
+        return (
+            Path(self.cfg.runner.logger.log_path).resolve()
+            / self.cfg.runner.logger.experiment_name
+            / "checkpoints"
         )
+
+    @staticmethod
+    def _complete_checkpoints(directory: Path) -> list[Path]:
+        """Find published, owned checkpoints; ignore staging and legacy directories."""
+        complete = []
+        for path in directory.glob("global_step_*"):
+            step = path.name.removeprefix("global_step_")
+            if not step.isdecimal() or path.is_symlink() or not path.is_dir():
+                continue
+            try:
+                marker = (path / ".complete").read_text()
+            except (OSError, UnicodeError):
+                continue
+            if (
+                marker == f"rlinf-checkpoint-v1:{int(step)}\n"
+                and (path / "actor").is_dir()
+            ):
+                complete.append(path)
+        return sorted(
+            complete, key=lambda path: int(path.name.removeprefix("global_step_"))
+        )
+
+    def _restore_best_checkpoint(self, resume_dir: Path) -> None:
+        """Restore comparable scores; never compare legacy window-success scores."""
+        candidates = []
+        state_path = resume_dir / "runner_state.json"
+        if state_path.is_file():
+            candidates.append(json.loads(state_path.read_text())["best_checkpoint"])
+        checkpoint_root = resume_dir.parent
+        if checkpoint_root.name == "best":
+            checkpoint_root = checkpoint_root.parent
+        index_path = checkpoint_root / "best" / "best.json"
+        if index_path.is_file():
+            candidates.append(json.loads(index_path.read_text()))
+        # Recover a preemption between best-directory rename and index update.
+        for path in self._complete_checkpoints(checkpoint_root / "best"):
+            state = json.loads((path / "runner_state.json").read_text())[
+                "best_checkpoint"
+            ]
+            if state is not None and Path(state["path"]) == path:
+                candidates.append(state)
+        comparable = [
+            state
+            for state in candidates
+            if state is not None and state.get("metric") == "env/success_rate"
+        ]
+        self.best_checkpoint = max(
+            comparable, key=lambda state: state["score"], default=None
+        )
+        owned = self._complete_checkpoints(self.checkpoint_root / "best")
+        if (
+            self.best_checkpoint is None
+            and owned
+            and checkpoint_root.resolve() == self.checkpoint_root
+        ):
+            # Keep the legacy weights until a new-metric best is safely published.
+            self._owned_best_checkpoint = owned[-1]
+            self.logger.info(
+                "Legacy best score ignored; establish a new env/success_rate best."
+            )
+        if self.best_checkpoint is not None:
+            best_path = Path(self.best_checkpoint["path"])
+            # A restarted run can replace its own best, but never a source run's.
+            if best_path in owned:
+                self._owned_best_checkpoint = best_path
+                index_tmp = best_path.parent / ".best.json.tmp"
+                index_tmp.write_text(json.dumps(self.best_checkpoint, indent=2) + "\n")
+                index_tmp.replace(best_path.parent / "best.json")
+                for previous in owned:
+                    if previous != best_path:
+                        shutil.rmtree(previous)
+            self.logger.info(f"Restored best env/success_rate: {self.best_checkpoint}")
+
+    def _maybe_save_best_checkpoint(self, success: float | None) -> None:
+        """Publish one best measured-policy checkpoint without deleting source runs."""
+        if success is None:
+            return
+        score = float(success)
+        if not math.isfinite(score) or (
+            self.best_checkpoint is not None and score <= self.best_checkpoint["score"]
+        ):
+            return
+        best_dir = self.checkpoint_root / "best"
+        best_dir.mkdir(parents=True, exist_ok=True)
+        destination = best_dir / f"global_step_{self.global_step}"
+        # A resumed policy can be measured again at the same step. Update its
+        # score without rewriting weights; foreign existing paths remain protected.
+        same_policy = (
+            destination == self._owned_best_checkpoint
+            and destination in self._complete_checkpoints(best_dir)
+        )
+        if destination.exists() and not same_policy:
+            raise FileExistsError(f"Best checkpoint already exists: {destination}")
+        candidate = {
+            "metric": "env/success_rate",
+            "score": score,
+            "step": self.global_step,
+            "path": str(destination),
+        }
+        if same_policy:
+            index_tmp = best_dir / ".best.json.tmp"
+            index_tmp.write_text(json.dumps(candidate, indent=2) + "\n")
+            index_tmp.replace(best_dir / "best.json")
+            self.best_checkpoint = candidate
+            return
+        staging = Path(tempfile.mkdtemp(prefix=".saving-", dir=best_dir))
+        try:
+            self._save_checkpoint(str(staging))
+            (staging / "runner_state.json").write_text(
+                json.dumps({"best_checkpoint": candidate}, indent=2) + "\n"
+            )
+            staging.rename(destination)
+            index_tmp = best_dir / ".best.json.tmp"
+            try:
+                index_tmp.write_text(json.dumps(candidate, indent=2) + "\n")
+                index_tmp.replace(best_dir / "best.json")
+            except Exception:
+                # Publishing failed: leave the previous best and index intact.
+                shutil.rmtree(destination)
+                index_tmp.unlink(missing_ok=True)
+                raise
+        finally:
+            if staging.exists():
+                shutil.rmtree(staging)
+        previous = self._owned_best_checkpoint
+        self.best_checkpoint = candidate
+        self._owned_best_checkpoint = destination
+        self.logger.info(f"Saved best env/success_rate={score} at {destination}")
+        if previous is not None:
+            shutil.rmtree(previous)
+
+    def _save_checkpoint(self, base_output_dir: str | None = None) -> None:
+        if base_output_dir is None:
+            root = self.checkpoint_root
+            destination = root / f"global_step_{self.global_step}"
+            if destination.exists() or destination.is_symlink():
+                raise FileExistsError(f"Checkpoint already exists: {destination}")
+            root.mkdir(parents=True, exist_ok=True)
+            staging = Path(tempfile.mkdtemp(prefix=".saving-", dir=root))
+            try:
+                self._save_checkpoint(str(staging))
+                staging.rename(destination)
+            finally:
+                if staging.exists():
+                    shutil.rmtree(staging)
+            self.logger.info(f"Published periodic checkpoint at {destination}")
+            if self.keep_last_n_checkpoints:
+                # Only marked periodic siblings in this experiment are owned.
+                # Never recurse into best/ or delete an external resume source.
+                stale = self._complete_checkpoints(root)[
+                    : -self.keep_last_n_checkpoints
+                ]
+                for previous in stale:
+                    shutil.rmtree(previous)
+                    self.logger.info(f"Removed old periodic checkpoint: {previous}")
+            return
+
+        self.logger.info(f"Saving checkpoint at step {self.global_step}.")
         actor_save_path = os.path.join(base_output_dir, "actor")
         os.makedirs(actor_save_path, exist_ok=True)
         self.actor.save_checkpoint(actor_save_path, self.global_step).wait()
+        if self.save_best_checkpoint:
+            (Path(base_output_dir) / "runner_state.json").write_text(
+                json.dumps({"best_checkpoint": self.best_checkpoint}, indent=2) + "\n"
+            )
+        (Path(base_output_dir) / ".complete").write_text(
+            f"rlinf-checkpoint-v1:{self.global_step}\n"
+        )
 
     def set_max_steps(self):
         self.num_steps_per_epoch = 1

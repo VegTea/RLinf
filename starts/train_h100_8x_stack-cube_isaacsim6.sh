@@ -10,6 +10,8 @@
 set -euo pipefail
 
 STARTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SAVE_INTERVAL (default 40), USE_WANDB (default false; offline when enabled).
+source "${STARTS_DIR}/_train_options.sh"
 # shellcheck disable=SC1091
 source "${STARTS_DIR}/source.sh"
 
@@ -62,13 +64,14 @@ else
     ray start --head --num-gpus=8
 fi
 
-exec bash examples/embodiment/run_embodiment.sh \
-    isaaclab_franka_stack_cube_ppo_openpi_pi05_isaacsim6_chunkopt \
-    "${ROBOT_PLATFORM:-LIBERO}" \
 #    runner.logger.experiment_name=isaaclab_ppo_openpi_pi05_stack_cube_h100_8x \
 #    runner.max_epochs="${MAX_EPOCHS}" \
 #    env.train.total_num_envs=128 \
 #    env.eval.total_num_envs=32 \
 #    actor.micro_batch_size=32 \
 #    actor.global_batch_size=256 \
+exec bash examples/embodiment/run_embodiment.sh \
+    isaaclab_franka_stack_cube_ppo_openpi_pi05_isaacsim6_chunkopt \
+    "${ROBOT_PLATFORM:-LIBERO}" \
+    "${TRAIN_OPTIONS[@]}" \
     "$@"

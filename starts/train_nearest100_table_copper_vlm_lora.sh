@@ -12,6 +12,8 @@ set -euo pipefail
 
 # 根据脚本位置计算仓库根目录，因此可以从任意工作目录启动。
 STARTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SAVE_INTERVAL (default 40), USE_WANDB (default false; offline when enabled).
+source "${STARTS_DIR}/_train_options.sh"
 REPO_PATH="$(dirname "${STARTS_DIR}")"
 
 # 必须使用仓库的 Python 3.11 虚拟环境。直接使用系统或 Conda Python
@@ -38,4 +40,5 @@ export LOG_NAME_TAG="${LOG_NAME_TAG:-nearest100-vlm-lora-4x4090-formal}"
 exec bash examples/embodiment/run_embodiment.sh \
     nearest100_table_copper_vlm_lora \
     "${ROBOT_PLATFORM:-LIBERO}" \
+    "${TRAIN_OPTIONS[@]}" \
     "$@"

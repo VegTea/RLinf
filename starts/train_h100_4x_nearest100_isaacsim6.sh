@@ -7,6 +7,8 @@
 set -euo pipefail
 
 STARTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SAVE_INTERVAL (default 40), USE_WANDB (default false; offline when enabled).
+source "${STARTS_DIR}/_train_options.sh"
 # shellcheck disable=SC1091
 source "${STARTS_DIR}/source.sh"
 
@@ -40,4 +42,5 @@ exec bash examples/embodiment/run_embodiment.sh \
     env.eval.total_num_envs=32 \
     actor.micro_batch_size=64 \
     actor.global_batch_size=256 \
+    "${TRAIN_OPTIONS[@]}" \
     "$@"
