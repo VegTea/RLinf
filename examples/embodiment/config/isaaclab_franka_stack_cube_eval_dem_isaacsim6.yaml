@@ -1,0 +1,137 @@
+# Same task/renderer/time budget as the pi05 IsaacSim6 chunkopt evaluation.
+# Primary config: Hydra does not allow inheriting another primary searchpath.
+defaults:
+  - env/isaaclab_stack_cube@env.train
+  - env/isaaclab_stack_cube@env.eval
+  - training_backend/fsdp@actor.fsdp_config
+  - override hydra/job_logging: stdout
+  - _self_
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  searchpath:
+    - file://${oc.env:EMBODIED_PATH}/config/
+
+# actor is placement metadata only: eval_embodied_agent spawns no actor.
+cluster:
+  num_nodes: 1
+  component_placement:
+    actor:
+      node_group: model
+      placement: "0"
+    rollout:
+      node_group: model
+      placement: "0"
+    env:
+      node_group: isaacsim6
+      placement: "0"
+  node_groups:
+    - label: model
+      node_ranks: 0
+      env_configs:
+        - node_ranks: 0
+          python_interpreter_path: ${oc.env:RLINF_DEM_PYTHON}
+    - label: isaacsim6
+      node_ranks: 0
+      env_configs:
+        - node_ranks: 0
+          python_interpreter_path: ${oc.env:RLINF_ISAACSIM_PYTHON}
+          env_vars:
+            - REPO_PATH: ${oc.env:REPO_PATH}
+            - PYTHONPATH: ${oc.env:REPO_PATH}
+            - ISAACSIM_ASSET_ROOT: ${oc.env:ISAACSIM_ASSET_ROOT}
+            - OMNI_KIT_ACCEPT_EULA: "YES"
+
+runner:
+  task_type: embodied
+  only_eval: true
+  ckpt_path: null
+  resume_dir: null
+  val_check_interval: -1
+  max_epochs: 1
+  max_steps: -1
+  logger:
+    log_path: ../results
+    project_name: rlinf
+    experiment_name: dem_stack_cube_first_episode
+    logger_backends: [tensorboard]
+
+algorithm:
+  eval_rollout_epoch: 1
+  rollout_epoch: 1
+  adv_type: gae
+  loss_type: actor_critic # Only retained for shared config; no PPO actor is created.
+  sampling_params:
+    do_sample: true
+    temperature_train: 1.0
+    temperature_eval: 1.0
+    top_k: 50
+    top_p: 1.0
+  length_params:
+    max_new_token: null
+
+env:
+  group_name: EnvGroup
+  train:
+    total_num_envs: 1
+    max_episode_steps: 450
+    max_steps_per_rollout_epoch: 450
+  eval:
+    total_num_envs: 1
+    auto_reset: false
+    ignore_terminations: true
+    first_episode_only: true
+    include_native_eef_quat: true
+    use_fixed_reset_state_ids: true
+    debug_init_cube_positions: true
+    seed: 42
+    max_episode_steps: 450
+    max_steps_per_rollout_epoch: 450
+    init_params:
+      enable_depth_observations: false
+      render_only_at_chunk_end: false
+      antialiasing_mode: DLAA
+    video_cfg:
+      save_video: true
+      first_episode_only: true
+      per_env_videos: true
+      camera_keys: [main_images, wrist_images]
+      wait_for_video_writes: true
+      video_base_dir: ${runner.logger.log_path}/video/eval
+      extra_info_on_video: [episode.success_rate, episode.first_episode_end_step]
+
+actor:
+  group_name: ActorGroup
+  training_backend: fsdp
+  micro_batch_size: 1
+  global_batch_size: 1
+  model:
+    model_type: dem
+    model_path: ${oc.env:DEM_POLICY_PATH}
+    precision: fp32
+    action_dim: 7
+    num_action_chunks: 5
+    add_value_head: false
+    is_lora: false
+    dem:
+      seed: 42
+      allow_unverified_contract: false
+  fsdp_config:
+    sharding_strategy: no_shard
+    mixed_precision:
+      param_dtype: fp32
+      reduce_dtype: fp32
+      buffer_dtype: fp32
+
+rollout:
+  group_name: RolloutGroup
+  backend: huggingface
+  enable_offload: false
+  enable_torch_compile: false
+  enable_cuda_graph: false
+  pipeline_stage_num: 1
+  model:
+    model_path: ${oc.env:DEM_POLICY_PATH}
+    precision: fp32
