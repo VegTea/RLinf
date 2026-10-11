@@ -1,3 +1,6 @@
+# Copyright 2026 The RLinf Authors.
+# SPDX-License-Identifier: Apache-2.0
+
 """Unit checks for IsaacLab chunk-boundary camera rendering."""
 
 from pathlib import Path
@@ -9,7 +12,6 @@ from omegaconf import OmegaConf
 from rlinf.envs.isaaclab.isaaclab_env import IsaaclabBaseEnv
 from rlinf.envs.isaaclab.tasks.stack_cube import IsaaclabStackCubeEnv
 from rlinf.envs.isaaclab.venv import SubProcIsaacLabEnv
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

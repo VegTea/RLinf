@@ -13,11 +13,15 @@ docs/build
 dist
 logs/*
 outputs/*
+/tmp/
 *.so
+.pi
 .venv
 .venv-model
 .venv-model312
 .venv-isaacsim6
+.venv-dem
+third_party/DEM/
 .docs-venv
 uv.lock
 rlinf/envs/maniskill/assets
